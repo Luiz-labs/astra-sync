@@ -570,7 +570,7 @@ async function renderProducts(searchQuery = '') {
         console.error(error);
         tbody.innerHTML = `
             <tr>
-                <td colspan="8">
+                <td colspan="9">
                     <div class="empty-state">
                         <div class="empty-icon">⚠️</div>
                         <div class="empty-text">No se pudieron cargar los productos.</div>
@@ -628,7 +628,15 @@ async function renderProducts(searchQuery = '') {
             ? p.supplier
             : '<span style="color:var(--text-secondary);font-style:italic;">N/A</span>';
 
+        const createdAt = p.created_at ? new Date(p.created_at).toLocaleDateString() : '-';
+
         const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.onclick = (e) => {
+            if (e.target.tagName !== 'BUTTON') {
+                viewProductHistory(p.id, p);
+            }
+        };
         tr.innerHTML = `
             <td>${p.name}</td>
             <td>${p.category || 'General'}</td>
@@ -641,6 +649,7 @@ async function renderProducts(searchQuery = '') {
                     ${p.stock}
                 </span>
             </td>
+            <td>${createdAt}</td>
             <td>
                 <button onclick="editProduct('${p.id}')" style="background:none;border:none;cursor:pointer;color:var(--accent-blue);font-size:16px;">✏️</button>
                 <button onclick="deleteProduct('${p.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger-red);font-size:16px;margin-left:8px;">🗑️</button>
@@ -649,6 +658,50 @@ async function renderProducts(searchQuery = '') {
         tbody.appendChild(tr);
     });
 }
+
+window.viewProductHistory = async function (productId, product) {
+    document.getElementById('productDetailInfo').innerHTML = `
+        <div><strong>Nombre:</strong> ${product.name}</div>
+        <div><strong>Categoría:</strong> ${product.category || '-'}</div>
+        <div><strong>Stock:</strong> ${product.stock}</div>
+        <div><strong>Precio:</strong> S/ ${Number(product.sale_price).toFixed(2)}</div>
+    `;
+    const tbody = document.getElementById('productHistoryTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
+    document.getElementById('productHistoryModal').showModal();
+
+    try {
+        const { data: sales } = await supabaseClient
+            .from('sales')
+            .select('*')
+            .eq('product_id', productId)
+            .order('created_at', { ascending: false });
+
+        tbody.innerHTML = '';
+        if (!sales || sales.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay ventas registradas.</td></tr>';
+            return;
+        }
+
+        sales.forEach(s => {
+            const d = new Date(s.created_at).toLocaleDateString();
+            const estado = s.is_voided ? '<span style="color:var(--danger-red);font-size:12px;font-weight:bold;">Anulada</span>' : '<span style="color:var(--success-green);font-size:12px;font-weight:bold;">Activa</span>';
+            const tr = document.createElement('tr');
+            if (s.is_voided) tr.style.opacity = '0.6';
+            tr.innerHTML = `
+                <td>${d}</td>
+                <td>${s.customer_name_snapshot || 'Mostrador'}</td>
+                <td>${s.quantity}</td>
+                <td>S/ ${Number(s.total).toFixed(2)}</td>
+                <td>${estado}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Error al cargar historial.</td></tr>';
+    }
+};
+document.getElementById('btnCloseProductHistoryModal')?.addEventListener('click', () => document.getElementById('productHistoryModal').close());
 
 document.getElementById('searchProducts')?.addEventListener('input', (e) => {
     renderProducts(e.target.value);
@@ -674,6 +727,8 @@ customerForm.addEventListener('submit', async (e) => {
     const name = document.getElementById('customerName').value;
     const phone = document.getElementById('customerPhone').value;
     const email = document.getElementById('customerEmail').value;
+    const address = document.getElementById('customerAddress').value;
+    const district = document.getElementById('customerDistrict').value;
 
     let profile;
     try {
@@ -683,11 +738,11 @@ customerForm.addEventListener('submit', async (e) => {
         return;
     }
 
-    const payload = { tenant_id: profile.tenant_id, name, phone, email };
+    const payload = { tenant_id: profile.tenant_id, name, phone, email, address, district };
     let error;
 
     if (idInput) {
-        const res = await supabaseClient.from('customers').update({ name, phone, email }).eq('id', idInput);
+        const res = await supabaseClient.from('customers').update({ name, phone, email, address, district }).eq('id', idInput);
         error = res.error;
     } else {
         const res = await supabaseClient.from('customers').insert(payload);
@@ -710,8 +765,10 @@ window.editCustomer = async function (id) {
 
     document.getElementById('customerId').value = c.id;
     document.getElementById('customerName').value = c.name;
-    document.getElementById('customerPhone').value = c.phone;
-    document.getElementById('customerEmail').value = c.email;
+    document.getElementById('customerPhone').value = c.phone || '';
+    document.getElementById('customerEmail').value = c.email || '';
+    document.getElementById('customerAddress').value = c.address || '';
+    document.getElementById('customerDistrict').value = c.district || '';
     document.getElementById('customerModalTitle').textContent = 'Editar Cliente';
 
     customerModal.showModal();
@@ -749,14 +806,56 @@ async function renderCustomers() {
             <td>${c.name}</td>
             <td>${c.phone || '-'}</td>
             <td>${c.email || '-'}</td>
+            <td>${c.address || '-'}</td>
+            <td>${c.district || '-'}</td>
             <td style="display: flex; gap: 8px;">
                 <button onclick="editCustomer('${c.id}')" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;">Editar</button>
+                <button onclick="viewCustomerHistory('${c.id}', '${c.name.replace(/'/g, "\\'")}')" class="btn-secondary" style="padding: 6px 12px; font-size: 13px;">Historial</button>
                 <button onclick="deleteCustomer('${c.id}')" class="btn-secondary" style="padding: 6px 12px; font-size: 13px; color: var(--danger-red); border-color: rgba(255, 69, 58, 0.2);">X</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
 }
+
+window.viewCustomerHistory = async function (customerId, customerName) {
+    document.getElementById('customerHistoryName').textContent = customerName;
+    const tbody = document.getElementById('customerHistoryTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
+    document.getElementById('customerHistoryModal').showModal();
+
+    try {
+        const { data: sales } = await supabaseClient
+            .from('sales')
+            .select('*')
+            .or(`customer_id.eq.${customerId},customer_name_snapshot.eq."${customerName}"`)
+            .order('created_at', { ascending: false });
+
+        tbody.innerHTML = '';
+        if (!sales || sales.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay ventas para este cliente.</td></tr>';
+            return;
+        }
+
+        sales.forEach(s => {
+            const d = new Date(s.created_at).toLocaleDateString();
+            const estado = s.is_voided ? '<span style="color:var(--danger-red);font-size:12px;font-weight:bold;">Anulada</span>' : '<span style="color:var(--success-green);font-size:12px;font-weight:bold;">Activa</span>';
+            const tr = document.createElement('tr');
+            if (s.is_voided) tr.style.opacity = '0.6';
+            tr.innerHTML = `
+                <td>${d}</td>
+                <td>${s.product_name_snapshot}</td>
+                <td>${s.quantity}</td>
+                <td>S/ ${Number(s.total).toFixed(2)}</td>
+                <td>${estado}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Error al cargar historial.</td></tr>';
+    }
+};
+document.getElementById('btnCloseCustomerHistoryModal')?.addEventListener('click', () => document.getElementById('customerHistoryModal').close());
 
 
 // --- VENTAS ---
@@ -766,6 +865,11 @@ const saleSelectCustomer = document.getElementById('saleSelectCustomer');
 const saleQuantity = document.getElementById('saleQuantity');
 const saleTotalAmount = document.getElementById('saleTotalAmount');
 const saleProfitAmount = document.getElementById('saleProfitAmount');
+const saleIgv = document.getElementById('saleIgv');
+const saleShippingCost = document.getElementById('saleShippingCost');
+const saleShippingType = document.getElementById('saleShippingType');
+const saleShippingMode = document.getElementById('saleShippingMode');
+const saleManualCustomer = document.getElementById('saleManualCustomer');
 
 async function loadSalesForm() {
     let products = [];
@@ -788,7 +892,7 @@ async function loadSalesForm() {
         }
     });
 
-    saleSelectCustomer.innerHTML = '<option value="">Cliente mostrador</option>';
+    saleSelectCustomer.innerHTML = '<option value="">Cliente manual / mostrador</option>';
     customers.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
@@ -797,6 +901,9 @@ async function loadSalesForm() {
     });
 
     saleQuantity.value = 1;
+    saleIgv.value = '0.00';
+    saleShippingCost.value = '0.00';
+    saleManualCustomer.value = '';
     calculateSaleTotals();
 }
 
@@ -818,8 +925,21 @@ function calculateSaleTotals() {
         saleQuantity.value = maxStock;
     }
 
-    const total = qty * price;
-    const profit = qty * (price - cost);
+    let shippingCost = parseFloat(saleShippingCost.value) || 0;
+    let shippingMode = saleShippingMode.value;
+
+    let total = qty * price;
+    let profit = qty * (price - cost);
+
+    if (shippingMode === 'sumar_al_precio') {
+        total += shippingCost;
+    } else if (shippingMode === 'costo_interno') {
+        profit -= shippingCost;
+    }
+
+    if (document.activeElement !== saleIgv) {
+        saleIgv.value = (total * 0.18).toFixed(2);
+    }
 
     saleTotalAmount.textContent = total.toFixed(2);
     saleProfitAmount.textContent = profit.toFixed(2);
@@ -827,6 +947,8 @@ function calculateSaleTotals() {
 
 saleSelectProduct.addEventListener('change', calculateSaleTotals);
 saleQuantity.addEventListener('input', calculateSaleTotals);
+saleShippingCost.addEventListener('input', calculateSaleTotals);
+saleShippingMode.addEventListener('change', calculateSaleTotals);
 
 newSaleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -848,6 +970,9 @@ newSaleForm.addEventListener('submit', async (e) => {
     let customerName = "Cliente mostrador";
     if (customerId) {
         customerName = saleSelectCustomer.options[saleSelectCustomer.selectedIndex].text;
+    } else {
+        const manual = saleManualCustomer.value.trim();
+        if (manual) customerName = manual;
     }
 
     let profile;
@@ -855,6 +980,20 @@ newSaleForm.addEventListener('submit', async (e) => {
 
     const unitPrice = parseFloat(selectedOpt.dataset.price || '0');
     const unitCost = parseFloat(selectedOpt.dataset.cost || '0');
+
+    const shippingCost = parseFloat(saleShippingCost.value) || 0;
+    const shippingType = saleShippingType.value;
+    const shippingMode = saleShippingMode.value;
+    const igv = parseFloat(saleIgv.value) || 0;
+
+    let total = qty * unitPrice;
+    let profit = qty * (unitPrice - unitCost);
+
+    if (shippingMode === 'sumar_al_precio') {
+        total += shippingCost;
+    } else if (shippingMode === 'costo_interno') {
+        profit -= shippingCost;
+    }
 
     const salePayload = {
         tenant_id: String(profile.tenant_id),
@@ -865,8 +1004,12 @@ newSaleForm.addEventListener('submit', async (e) => {
         quantity: qty,
         unit_price: unitPrice,
         unit_cost: unitCost,
-        total: qty * unitPrice,
-        profit: qty * (unitPrice - unitCost),
+        total: total,
+        profit: profit,
+        igv: igv,
+        shipping_cost: shippingCost,
+        shipping_type: shippingType,
+        shipping_mode: shippingMode,
         created_by: profile.id,
         is_voided: false
     };
@@ -882,7 +1025,7 @@ newSaleForm.addEventListener('submit', async (e) => {
 
     await supabaseClient.from('products').update({ stock: availableStock - qty }).eq('id', productId);
 
-    showToast('¡Venta Completada exitosamente!');
+    showToast('¡Venta registrada con éxito! ✅', '🎉');
     newSaleForm.reset();
     await loadSalesForm();
     await updateDashboard();
@@ -947,21 +1090,59 @@ async function updateReports() {
     try { sales = await fetchSalesFromSupabase(); } catch (e) { }
 
     const now = new Date();
-    let filteredSales = sales;
+    let filteredSalesForTable = sales;
 
     if (timeframe !== 'all') {
         const days = parseInt(timeframe);
         const cutoffTime = now.getTime() - (days * 24 * 60 * 60 * 1000);
-        filteredSales = sales.filter(s => new Date(s.created_at).getTime() >= cutoffTime && !s.is_voided);
-    } else {
-        filteredSales = sales.filter(s => !s.is_voided);
+        filteredSalesForTable = sales.filter(s => new Date(s.created_at).getTime() >= cutoffTime);
     }
 
-    const totalSales = filteredSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
-    const totalProfit = filteredSales.reduce((sum, s) => sum + Number(s.profit || 0), 0);
+    const filteredSalesForMetrics = filteredSalesForTable.filter(s => !s.is_voided);
+
+    const totalSales = filteredSalesForMetrics.reduce((sum, s) => sum + Number(s.total || 0), 0);
+    const totalProfit = filteredSalesForMetrics.reduce((sum, s) => sum + Number(s.profit || 0), 0);
 
     document.getElementById('reportTotalSales').textContent = 'S/ ' + totalSales.toFixed(2);
     document.getElementById('reportTotalProfit').textContent = 'S/ ' + totalProfit.toFixed(2);
+
+    const tbody = document.getElementById('reportsDetailTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (filteredSalesForTable.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">No hay ventas en este periodo.</td></tr>';
+    } else {
+        filteredSalesForTable.forEach(s => {
+            const dateStr = new Date(s.created_at).toLocaleDateString();
+            const costoTotal = (s.unit_cost || 0) * s.quantity;
+            let percentFormat = '-';
+            if (costoTotal > 0) {
+                percentFormat = ((s.profit / costoTotal) * 100).toFixed(1) + '%';
+            } else if (s.profit > 0) {
+                percentFormat = '100%';
+            }
+
+            const estado = s.is_voided ? '<span style="color:var(--danger-red);font-weight:bold;font-size:12px;">Anulada</span>' : '<span style="color:var(--success-green);font-weight:bold;font-size:12px;">Activa</span>';
+
+            const tr = document.createElement('tr');
+            if (s.is_voided) tr.style.opacity = '0.6';
+            tr.innerHTML = `
+                <td>${dateStr}</td>
+                <td>${s.product_name_snapshot}</td>
+                <td>${s.customer_name_snapshot || '-'}</td>
+                <td>${s.quantity}</td>
+                <td>S/ ${Number(s.total || 0).toFixed(2)}</td>
+                <td>S/ ${costoTotal.toFixed(2)}</td>
+                <td>S/ ${Number(s.profit || 0).toFixed(2)}</td>
+                <td>${percentFormat}</td>
+                <td>S/ ${Number(s.igv || 0).toFixed(2)}</td>
+                <td>S/ ${Number(s.shipping_cost || 0).toFixed(2)}</td>
+                <td>${estado}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
 }
 
 document.getElementById('reportTimeframe').addEventListener('change', updateReports);
