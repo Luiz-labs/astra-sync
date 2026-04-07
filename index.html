@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Astra Sync</title>
+    <!-- 5. Favicon -->
+    <link rel="icon" href="astra_logo.jpeg" type="image/jpeg">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Libreria XLSX para importación de Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+    <!-- 4. Simple Login Pantalla -->
+    <section id="loginView" class="login-wrapper">
+        <div class="card login-card">
+            <div class="login-logo-wrap">
+                <img src="astra_logo.jpeg" alt="Astra Click" onerror="this.onerror=null; this.style.display='none';">
+            </div>
+            <h2>Bienvenido a Astra Sync</h2>
+            <p class="settings-hint login-hint">Por favor, ingresa tus credenciales.</p>
+            <form id="loginForm">
+                <label>Usuario <input type="text" id="loginUser" placeholder="Usuario" required></label>
+                <label>Contraseña <input type="password" id="loginPass" placeholder="Contraseña" required></label>
+                <button type="submit" class="btn-primary">Iniciar Sesión</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Interfaz Principal (Oculta hasta login) -->
+    <div id="mainAppUI" hidden>
+        <!-- Navegación de la Aplicación -->
+        <nav id="mainNav">
+            <div class="brand">
+                <div class="brand-logo-container">
+                    <img src="astra_logo.jpeg" alt="Astra Click" id="activeAppLogo"
+                        onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'100\' height=\'100\' fill=\'%23007AFF\' rx=\'25\'/><text x=\'50\' y=\'55\' fill=\'white\' font-size=\'40\' font-family=\'sans-serif\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-weight=\'bold\'>A</text></svg>'">
+                </div>
+                <span class="brand-text">Astra Sync</span>
+            </div>
+            <ul>
+                <li><button data-target="dashboardView"><span class="nav-icon">🏠</span> Inicio</button></li>
+                <li><button data-target="productsView"><span class="nav-icon">📦</span> Productos</button></li>
+                <li><button data-target="salesView"><span class="nav-icon">💳</span> Ventas</button></li>
+                <li><button data-target="customersView"><span class="nav-icon">👥</span> Clientes</button></li>
+                <li><button data-target="salesHistoryView"><span class="nav-icon">📜</span> Historial</button></li>
+                <li><button data-target="reportsView"><span class="nav-icon">📈</span> Reportes</button></li>
+                <li><button data-target="settingsView"><span class="nav-icon">⚙️</span> Ajustes</button></li>
+                <li class="nav-logout-item"><button id="btnLogout" class="btn-logout"><span class="nav-icon">🚪</span>
+                        Salir</button></li>
+            </ul>
+        </nav>
+
+        <!-- Contenedor de Pantallas -->
+        <main id="appContainer">
+
+            <!-- 1. Vista Inicio (Dashboard) -->
+            <section id="dashboardView">
+                <header>
+                    <h1>Inicio</h1>
+                </header>
+                <div class="dashboard-metrics">
+                    <div class="card card-gradient-1">
+                        <div class="card-icon">💸</div>
+                        <div>
+                            <h3>Ventas de Hoy</h3>
+                            <p id="dashTodaySales">S/ 0.00</p>
+                        </div>
+                    </div>
+                    <div class="card card-gradient-2">
+                        <div class="card-icon">📈</div>
+                        <div>
+                            <h3>Ganancia de Hoy</h3>
+                            <p id="dashTodayProfit">S/ 0.00</p>
+                        </div>
+                    </div>
+                    <div class="card card-gradient-3">
+                        <div class="card-icon">⚠️</div>
+                        <div>
+                            <h3>SKUs con stock bajo</h3>
+                            <p id="dashLowStock">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-sales">
+                    <h2>Actividad Reciente</h2>
+                    <ul id="dashRecentSalesList">
+                        <!-- Llenado via JS -->
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 2. Vista Productos -->
+            <section id="productsView" hidden>
+                <header class="header-wrap">
+                    <h1>Inventario</h1>
+                    <div class="header-actions">
+                        <button id="btnShowAddProduct" class="btn-primary">Añadir Producto</button>
+                    </div>
+                </header>
+
+                <div class="search-bar">
+                    <input type="search" id="searchProducts" placeholder="Buscar productos por nombre...">
+                </div>
+
+                <div class="table-container">
+                    <table id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Categoría</th>
+                                <th>Proveedor</th>
+                                <th>Costo</th>
+                                <th>Precio Venta</th>
+                                <th>Margen</th>
+                                <th>Stock</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <!-- Llenado via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 3. Vista Ventas -->
+            <section id="salesView" hidden>
+                <header>
+                    <h1>Nueva Venta</h1>
+                </header>
+
+                <div class="sale-container card interactive-card">
+                    <form id="newSaleForm">
+                        <label>
+                            Cliente (Opcional)
+                            <select id="saleSelectCustomer">
+                                <option value="">Cliente mostrador</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            Producto
+                            <select id="saleSelectProduct" required>
+                                <option value="" disabled selected>-- Seleccionar Producto --</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            Cantidad
+                            <input type="number" id="saleQuantity" min="1" value="1" required>
+                        </label>
+
+                        <div class="sale-totals">
+                            <p>Total: S/ <span id="saleTotalAmount">0.00</span></p>
+                            <p class="profit-highlight">Ganancia Esperada: S/ <span id="saleProfitAmount">0.00</span>
+                            </p>
+                            <button type="submit" id="btnCompleteSale" class="btn-primary">Completar Venta</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- 4. Vista Clientes -->
+            <section id="customersView" hidden>
+                <header class="header-wrap">
+                    <h1>Clientes</h1>
+                    <button id="btnShowAddCustomer" class="btn-primary">Añadir Cliente</button>
+                </header>
+
+                <div class="table-container view-spacer">
+                    <table id="customersTable">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Teléfono</th>
+                                <th>Correo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersTableBody">
+                            <!-- Llenado via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 4.5. Vista Historial de Ventas -->
+            <section id="salesHistoryView" hidden>
+                <header class="header-wrap">
+                    <h1>Historial de Ventas</h1>
+                </header>
+
+                <div class="table-container view-spacer">
+                    <table id="salesHistoryTable">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Cliente</th>
+                                <th>Total</th>
+                                <th>Ganancia</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesHistoryTableBody">
+                            <!-- Llenado via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 5. Vista Reportes -->
+            <section id="reportsView" hidden>
+                <header class="header-wrap">
+                    <h1>Reportes</h1>
+                </header>
+
+                <div class="report-filters card view-spacer">
+                    <label>
+                        Periodo de Tiempo
+                        <select id="reportTimeframe">
+                            <option value="7">Últimos 7 Días</option>
+                            <option value="30">Últimos 30 Días</option>
+                            <option value="all">Todo el tiempo</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="dashboard-metrics report-metrics">
+                    <div class="card card-gradient-1">
+                        <div class="card-icon">📊</div>
+                        <div>
+                            <h3>Volumen Total</h3>
+                            <p id="reportTotalSales">S/ 0.00</p>
+                        </div>
+                    </div>
+                    <div class="card card-gradient-2">
+                        <div class="card-icon">💎</div>
+                        <div>
+                            <h3>Margen Total</h3>
+                            <p id="reportTotalProfit">S/ 0.00</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. Vista Ajustes (Restructurada) -->
+            <section id="settingsView" hidden>
+                <header>
+                    <h1>Configuración</h1>
+                </header>
+
+                <div class="settings-grid view-spacer">
+                    <!-- Bloque A: Identidad Visual -->
+                    <div class="card interactive-card">
+                        <h2>Identidad Visual</h2>
+                        <p class="settings-hint">Añade o cambia el logo principal para personalizar el sistema en todas
+                            las vistas.</p>
+
+                        <div class="logo-config-row">
+                            <div class="preview-box">
+                                <img id="logoPreviewPlaceholder" src="astra_logo.jpeg" alt="Astra Click"
+                                    onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'100\' height=\'100\' fill=\'%23007AFF\' rx=\'25\'/><text x=\'50\' y=\'55\' fill=\'white\' font-size=\'40\' font-family=\'sans-serif\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-weight=\'bold\'>A</text></svg>'">
+                            </div>
+                            <div class="logo-actions">
+                                <label class="btn-secondary btn-logo-upload">
+                                    <input type="file" id="logoUploadInput" accept="image/*" hidden>
+                                    Cambiar Logo
+                                </label>
+                                <p class="margin-preview mockup-notice">(Funcionalidad base lista. Almacenamiento local
+                                    en pruebas).</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloque B: Importación de Excel -->
+                    <div class="card interactive-card">
+                        <h2>Importación de Productos</h2>
+                        <p class="settings-hint">Sube una plantilla Excel (.xlsx o .xls) con las columnas: nombre,
+                            categoría, proveedor, costo, precio_venta, stock.</p>
+
+                        <div class="file-upload-box">
+                            <input type="file" id="excelFileInput" accept=".xlsx, .xls">
+                        </div>
+
+                        <button id="btnImportExcel" class="btn-primary" style="margin-top: 20px; width: 100%;">Importar
+                            productos desde Excel</button>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="app-footer">
+                <p>Desarrollado por <strong>Luiz-Labs</strong> 🚀 | Astra Sync v1.0</p>
+            </footer>
+
+        </main>
+    </div> <!-- Fin MainAppUI -->
+
+    <!-- Modales de Formularios -->
+    <dialog id="productModal">
+        <div class="modal-dialog">
+            <header>
+                <h2 id="productModalTitle">Añadir Producto</h2>
+                <button id="btnCloseProductModal" class="btn-close">✕</button>
+            </header>
+            <form id="productForm">
+                <input type="hidden" id="productId">
+                <div class="form-grid">
+                    <label>Nombre * <input type="text" id="productName" required></label>
+                    <label>Categoría <input type="text" id="productCategory"
+                            placeholder="(General por defecto)"></label>
+                    <label>Proveedor <input type="text" id="productSupplier"
+                            placeholder="Ej. Proveedor Principal..."></label>
+                    <label>Stock Inicial * <input type="number" id="productStock" min="0" required></label>
+                    <label>Costo (S/) * <input type="number" id="productCost" step="0.01" min="0" required></label>
+                    <label>Precio Venta (S/) * <input type="number" id="productSalePrice" step="0.01" min="0"
+                            required></label>
+                </div>
+
+                <p class="margin-preview">Margen Estimado: <strong id="marginPreviewAmount">0%</strong></p>
+                <button type="submit" class="btn-primary">Guardar Producto</button>
+            </form>
+        </div>
+    </dialog>
+
+    <dialog id="customerModal">
+        <div class="modal-dialog">
+            <header>
+                <h2 id="customerModalTitle">Añadir Cliente</h2>
+                <button id="btnCloseCustomerModal" class="btn-close">✕</button>
+            </header>
+            <form id="customerForm">
+                <input type="hidden" id="customerId">
+                <label>Nombre Completo * <input type="text" id="customerName" required></label>
+                <label>Teléfono <input type="tel" id="customerPhone"></label>
+                <label>Correo Electrónico <input type="email" id="customerEmail"></label>
+                <button type="submit" class="btn-primary">Guardar Cliente</button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Modal Confirmación -->
+    <dialog id="confirmModal">
+        <div class="modal-dialog" style="max-width: 400px; text-align: center; padding: 40px 32px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <h2 id="confirmModalTitle">Confirmación</h2>
+            <p id="confirmModalText" style="color: var(--text-secondary); margin-bottom: 32px;"></p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="btnConfirmCancel" class="btn-secondary" style="flex:1;">Cancelar</button>
+                <button id="btnConfirmOk" class="btn-primary"
+                    style="flex:1; background: var(--danger-red); box-shadow: none;">Confirmar</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Logica de App -->
+    <script src="app.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,771 @@
+/* Tema Base macOS/Apple (Astra Sync Premium) */
+:root {
+    --bg-color: #F0F4F8;
+    /* Un poco mas de vitalidad en el fondo global, menos gris sucio */
+    --card-bg: rgba(255, 255, 255, 0.7);
+    --card-border: rgba(255, 255, 255, 0.8);
+    --text-primary: #1C1C1E;
+    --text-secondary: #8E8E93;
+    --accent-blue: #0A84FF;
+    --accent-hover: #0070E0;
+    --success-green: #30D158;
+    --danger-red: #FF453A;
+
+    --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.03);
+    --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.08);
+    --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+
+    --radius-sm: 10px;
+    --radius-md: 20px;
+    --radius-lg: 32px;
+    --radius-pill: 9999px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #F9FAFB 0%, #E8EEF2 100%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tipografía Elegante */
+h1 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    margin-bottom: 24px;
+    color: var(--text-primary);
+}
+
+h2 {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.6px;
+    margin-bottom: 16px;
+}
+
+h3 {
+    font-size: 15px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+/* Base Contenedor Layout */
+#appContainer {
+    padding: 24px 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-bottom: 110px;
+    animation: fadeIn 0.4s ease-out;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main>section:not([hidden]) {
+    flex: 1;
+}
+
+main>section {
+    width: 100%;
+}
+
+/* Nav Logo Integracion */
+.brand {
+    display: none;
+    /* Mobile first oculta esto */
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 48px;
+    padding-left: 16px;
+}
+
+.brand-logo-container {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.brand-logo-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.brand-text {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+}
+
+/* Navegación Inferior (Móvil) & Lateral */
+#mainNav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    z-index: 1000;
+    padding: 12px 8px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+#mainNav ul {
+    list-style: none;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+#mainNav button {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: var(--radius-pill);
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#mainNav button:hover,
+#mainNav button.active {
+    background: rgba(10, 132, 255, 0.08);
+    color: var(--accent-blue);
+    transform: scale(1.05);
+}
+
+/* Tarjetas Transparentes de Cristal (Efecto Mac Premium) */
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    box-shadow: var(--shadow-soft);
+}
+
+.interactive-card {
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease;
+}
+
+.interactive-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+}
+
+/* Dashboard Más Vivo (Gradients Sutiles) */
+.dashboard-metrics,
+.report-metrics {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+/* Login Pantalla */
+.login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: linear-gradient(135deg, rgba(232, 238, 242, 0.4) 0%, rgba(249, 250, 251, 0.7) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 9999;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 380px;
+    padding: 48px 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.08), inset 0 2px 4px rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+.login-logo-wrap {
+    margin-bottom: 20px;
+}
+
+.login-logo-wrap img {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    object-fit: cover;
+    background: #FFF;
+}
+
+.login-card h2 {
+    font-size: 22px;
+    margin-bottom: 6px;
+    letter-spacing: -0.6px;
+}
+
+.login-card p.login-hint {
+    margin-bottom: 32px;
+    font-size: 14.5px;
+    line-height: 1.4;
+}
+
+.login-card form {
+    width: 100%;
+    align-items: stretch;
+    text-align: left;
+    gap: 20px;
+}
+
+.login-card form button {
+    margin-top: 12px;
+    padding: 14px 24px;
+}
+
+.dashboard-metrics .card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+}
+
+.card-icon {
+    font-size: 32px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 12px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.card-gradient-1 {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(224, 242, 254, 0.4) 100%);
+}
+
+.card-gradient-2 {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(220, 252, 231, 0.4) 100%);
+}
+
+.card-gradient-3 {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(254, 226, 226, 0.4) 100%);
+}
+
+.dashboard-metrics .card p {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -1.2px;
+}
+
+/* Botones */
+.btn-primary {
+    background: linear-gradient(180deg, #2E9CFF 0%, #0A84FF 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--radius-pill);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+    box-shadow: 0 4px 14px rgba(10, 132, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary:hover:not([disabled]) {
+    transform: scale(1.02) translateY(-1px);
+    box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    filter: brightness(1.1);
+}
+
+.btn-primary:active:not([disabled]) {
+    transform: scale(0.97);
+}
+
+.btn-primary[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--text-secondary);
+    box-shadow: none;
+}
+
+.btn-secondary {
+    background: #FFFFFF;
+    color: var(--text-primary);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 12px 24px;
+    border-radius: var(--radius-pill);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.btn-secondary:hover {
+    background: #F9FAFB;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.header-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* Formularios y Búsqueda */
+.search-bar {
+    margin-bottom: 24px;
+}
+
+.search-bar input {
+    width: 100%;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+label {
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    gap: 8px;
+}
+
+input,
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: #FFFFFF;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    font-size: 16px;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-inner);
+}
+
+input:focus,
+select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.15), var(--shadow-inner);
+}
+
+/* Configuracion Visual Logo Preview */
+.logo-upload-area {
+    margin-top: 16px;
+    background: #FFFFFF;
+    border: 1px dashed rgba(0, 0, 0, 0.15);
+    border-radius: var(--radius-md);
+    padding: 32px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.logo-upload-area:hover {
+    border-color: var(--accent-blue);
+    background: rgba(10, 132, 255, 0.02);
+}
+
+#logoPreviewPlaceholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
+    object-fit: cover;
+}
+
+/* Detalles Ventas */
+.sale-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.sale-totals {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sale-totals p {
+    display: flex;
+    justify-content: space-between;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.profit-highlight {
+    color: var(--success-green);
+    margin-bottom: 16px;
+}
+
+/* Tablas Premium */
+.table-container {
+    background: #FFFFFF;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    overflow-x: auto;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+th {
+    background: #F9FAFB;
+    text-align: left;
+    padding: 16px 24px;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+td {
+    padding: 18px 24px;
+    font-size: 15px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+tbody tr:hover {
+    background-color: #F4F6F8;
+}
+
+/* Elementos Visuales */
+.margin-preview {
+    font-size: 14px;
+    color: var(--accent-blue);
+    background: rgba(10, 132, 255, 0.08);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Lista Actividad Reciente */
+ul {
+    list-style: none;
+}
+
+.recent-sales li {
+    background: #FFFFFF;
+    border-radius: var(--radius-md);
+    padding: 18px 24px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid rgba(0, 0, 0, 0.02);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.recent-sales li:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Modales Nativos Cristalinos */
+dialog {
+    margin: auto;
+    border: none;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
+    padding: 0;
+    max-width: 90vw;
+    width: 600px;
+    /* Ancho para Formulario Grid */
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+}
+
+dialog::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-dialog {
+    padding: 32px;
+}
+
+.modal-dialog header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.modal-dialog header h2 {
+    margin: 0;
+}
+
+.btn-close {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.btn-close:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Excel Area */
+.file-upload-box {
+    margin-top: 16px;
+    border: 2px dashed rgba(0, 0, 0, 0.1);
+    background: #fafafa;
+    border-radius: var(--radius-md);
+    padding: 24px;
+    text-align: center;
+}
+
+.file-upload-box input {
+    box-shadow: none;
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+/* Utilidades Comunes */
+[hidden] {
+    display: none !important;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* MEDIA QUERIES RESPONSIVAS */
+@media (min-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (min-width: 900px) {
+    #appContainer {
+        padding: 48px;
+        margin-left: 260px;
+        padding-bottom: 48px;
+    }
+
+    #mainNav {
+        top: 0;
+        bottom: 0;
+        width: 260px;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: flex-start;
+        padding: 48px 24px;
+        border-top: none;
+        border-right: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .brand {
+        display: flex;
+        /* Muestra Logotipo Desktop */
+    }
+
+    #mainNav ul {
+        flex-direction: column;
+        width: 100%;
+        gap: 8px;
+    }
+
+    #mainNav li {
+        width: 100%;
+    }
+
+    #mainNav button {
+        width: 100%;
+        text-align: left;
+        font-size: 15px;
+        padding: 14px 16px;
+        flex-direction: row;
+        gap: 12px;
+    }
+
+    .dashboard-metrics,
+    .report-metrics {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+main>section {
+    margin-bottom: 32px;
+}
+
+.app-footer {
+    margin-top: auto;
+    text-align: center;
+    padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.82;
+}
+
+#customersView .table-container,
+#reportsView .report-filters,
+#settingsView .card {
+    margin-top: 8px;
+}
+
+#reportsView .report-filters {
+    margin-bottom: 28px;
+}
+
+#reportsView .report-metrics {
+    margin-top: 0;
+}
+
+/* Empty States */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 24px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.9;
+}
+
+.empty-text {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.toast {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    padding: 16px 24px;
+    border-radius: var(--radius-md);
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--text-primary);
+    animation: toastSlideIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    pointer-events: auto;
+}
+
+@keyframes toastSlideIn {
+    from {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes toastSlideOut {
+    to {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+}
