@@ -606,9 +606,10 @@ dialog {
     border-radius: var(--radius-lg);
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
     padding: 0;
+    width: -moz-fit-content;
+    width: -webkit-fit-content;
+    width: fit-content;
     max-width: 90vw;
-    width: 600px;
-    /* Ancho para Formulario Grid */
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
@@ -623,6 +624,21 @@ dialog::backdrop {
 
 .modal-dialog {
     padding: 32px;
+    width: auto;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+#productModal .modal-dialog,
+#customerModal .modal-dialog,
+#customerHistoryModal .modal-dialog,
+#productHistoryModal .modal-dialog {
+    width: min(600px, 90vw);
+}
+
+#confirmModal .modal-dialog,
+#successSaleModal .modal-dialog {
+    width: min(400px, 90vw);
 }
 
 .modal-dialog header {
