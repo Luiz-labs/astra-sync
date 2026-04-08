@@ -606,7 +606,7 @@ async function renderProducts(searchQuery = '') {
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8">
+                <td colspan="9">
                     <div class="empty-state">
                         <div class="empty-icon">📦</div>
                         <div class="empty-text">
@@ -793,7 +793,7 @@ async function renderCustomers() {
     try { customers = await fetchCustomersFromSupabase(); } catch (e) { }
 
     if (customers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
             <div class="empty-icon">👥</div>
             <div class="empty-text">Todavía no hay clientes guardados.</div>
         </div></td></tr>`;
@@ -1025,10 +1025,15 @@ newSaleForm.addEventListener('submit', async (e) => {
 
     await supabaseClient.from('products').update({ stock: availableStock - qty }).eq('id', productId);
 
-    showToast('¡Venta registrada con éxito! ✅', '🎉');
+    document.getElementById('successSaleModal').showModal();
     newSaleForm.reset();
     await loadSalesForm();
     await updateDashboard();
+    await updateReports();
+});
+
+document.getElementById('btnSuccessSaleOk')?.addEventListener('click', () => {
+    document.getElementById('successSaleModal').close();
 });
 
 
@@ -1226,5 +1231,105 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         navigateTo('dashboardView');
+        if (!localStorage.getItem('tutorial_visto')) {
+            setTimeout(window.startTutorial, 800);
+        }
     }
 });
+
+
+// --- ONBOARDING TUTORIAL ---
+const tutorialSteps = [
+    { target: 'button[data-target="dashboardView"]', view: 'dashboardView', title: 'Inicio', desc: 'Aquí podrás ver tus KPIs principales, alertas de stock bajo y las últimas ventas realizadas el día de hoy.' },
+    { target: 'button[data-target="productsView"]', view: 'productsView', title: 'Productos', desc: 'Gestiona tu inventario. Crea nuevos productos, define precios, costos y recibe alertas.' },
+    { target: 'button[data-target="salesView"]', view: 'salesView', title: 'Ventas', desc: 'Registra nuevas ventas. Selecciona productos, ajusta cantidades, igv y envíos rápidamente.' },
+    { target: 'button[data-target="customersView"]', view: 'customersView', title: 'Clientes', desc: 'Administra tus clientes frecuentes, edita su información y revisa su historial de compras.' },
+    { target: 'button[data-target="salesHistoryView"]', view: 'salesHistoryView', title: 'Historial', desc: 'Revisa el detalle y estado de todas las transacciones previas en un registro completo.' },
+    { target: 'button[data-target="reportsView"]', view: 'reportsView', title: 'Reportes', desc: 'Analiza el rendimiento general filtrando periodos (7, 30 días o más) y monitorea utilidades neta.' },
+    { target: 'button[data-target="settingsView"]', view: 'settingsView', title: 'Ajustes', desc: 'Personaliza tu experiencia y sube el logo de tu negocio.' }
+];
+
+let currentTutorialStep = 0;
+
+window.startTutorial = function () {
+    currentTutorialStep = 0;
+    document.getElementById('tutorialOverlay').removeAttribute('hidden');
+    renderTutorialStep();
+}
+
+function closeTutorial() {
+    document.getElementById('tutorialOverlay').setAttribute('hidden', '');
+    localStorage.setItem('tutorial_visto', 'true');
+    const dbBtn = document.querySelector('button[data-target="dashboardView"]');
+    if (dbBtn) dbBtn.click();
+}
+
+function renderTutorialStep() {
+    const step = tutorialSteps[currentTutorialStep];
+
+    // Switch view to force background routing visually
+    const navBtn = document.querySelector(step.target);
+    if (navBtn) navBtn.click();
+
+    setTimeout(() => {
+        const targetEl = document.querySelector(step.target);
+        const spotlight = document.getElementById('tutorialSpotlight');
+        const tooltip = document.getElementById('tutorialTooltip');
+
+        if (targetEl && window.innerWidth >= 900) {
+            // Desktop Spotlight calculation
+            const rect = targetEl.getBoundingClientRect();
+            spotlight.style.top = (rect.top - 4) + 'px';
+            spotlight.style.left = (rect.left - 4) + 'px';
+            spotlight.style.width = (rect.width + 8) + 'px';
+            spotlight.style.height = (rect.height + 8) + 'px';
+            spotlight.style.display = 'block';
+
+            // Adjust tooltip near the menu
+            let targetTop = rect.top;
+            if (targetTop + 240 > window.innerHeight) {
+                targetTop = window.innerHeight - 240;
+            }
+            tooltip.style.top = targetTop + 'px';
+            tooltip.style.left = (rect.right + 24) + 'px';
+            tooltip.style.transform = 'translate(0, 0)';
+            tooltip.style.bottom = 'auto';
+        } else {
+            // Mobile handled by CSS fallback or hiding spotlight
+            if (spotlight) spotlight.style.display = 'none';
+        }
+
+        document.getElementById('tutorialProgress').textContent = `${currentTutorialStep + 1} de ${tutorialSteps.length}`;
+        document.getElementById('tutorialTitle').textContent = step.title;
+        document.getElementById('tutorialDesc').textContent = step.desc;
+
+        const btnNext = document.getElementById('btnTutorialNext');
+        if (currentTutorialStep === tutorialSteps.length - 1) {
+            btnNext.textContent = 'Finalizar';
+        } else {
+            btnNext.textContent = 'Siguiente';
+        }
+
+        const btnBack = document.getElementById('btnTutorialBack');
+        btnBack.disabled = currentTutorialStep === 0;
+        btnBack.style.opacity = currentTutorialStep === 0 ? '0.5' : '1';
+    }, 150); // slight UI routing delay
+}
+
+document.getElementById('btnTutorialNext')?.addEventListener('click', () => {
+    if (currentTutorialStep < tutorialSteps.length - 1) {
+        currentTutorialStep++;
+        renderTutorialStep();
+    } else {
+        closeTutorial();
+    }
+});
+
+document.getElementById('btnTutorialBack')?.addEventListener('click', () => {
+    if (currentTutorialStep > 0) {
+        currentTutorialStep--;
+        renderTutorialStep();
+    }
+});
+
+document.getElementById('btnTutorialSkip')?.addEventListener('click', closeTutorial);

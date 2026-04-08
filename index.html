@@ -98,7 +98,7 @@
             <!-- 2. Vista Productos -->
             <section id="productsView" hidden>
                 <header class="header-wrap">
-                    <h1>Inventario</h1>
+                    <h1>Productos</h1>
                     <div class="header-actions">
                         <button id="btnShowAddProduct" class="btn-primary">Añadir Producto</button>
                     </div>
@@ -140,7 +140,7 @@
                     <form id="newSaleForm">
                         <label>
                             Cliente (Opcional)
-                            <div style="display: flex; gap: 8px;">
+                            <div class="customer-input-group">
                                 <select id="saleSelectCustomer">
                                     <option value="">Cliente manual / mostrador</option>
                                 </select>
@@ -160,7 +160,7 @@
                             <input type="number" id="saleQuantity" min="1" value="1" required>
                         </label>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div class="form-grid" style="margin-bottom: 12px; gap: 12px;">
                             <label>
                                 IGV (18%)
                                 <input type="number" id="saleIgv" step="0.01" value="0.00">
@@ -314,8 +314,10 @@
 
             <!-- 6. Vista Ajustes (Restructurada) -->
             <section id="settingsView" hidden>
-                <header>
-                    <h1>Configuración</h1>
+                <header class="header-wrap" style="align-items: center; justify-content: space-between; display: flex;">
+                    <h1 style="margin-bottom: 0;">Ajustes</h1>
+                    <button class="btn-secondary" onclick="window.startTutorial()"
+                        style="padding: 8px 16px; font-size: 13px;">👁️ Ver Tutorial</button>
                 </header>
 
                 <div class="settings-grid view-spacer">
@@ -325,21 +327,16 @@
                         <p class="settings-hint">Añade o cambia el logo principal para personalizar el sistema en todas
                             las vistas.</p>
 
-                        <div class="logo-config-row"
-                            style="display: flex; align-items: center; gap: 24px; margin-top: 16px;">
+                        <div class="logo-config-row">
                             <div class="preview-box">
                                 <img id="logoPreviewPlaceholder" src="astra_logo.jpeg" alt="Astra Click"
                                     onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'100\' height=\'100\' fill=\'%23007AFF\' rx=\'25\'/><text x=\'50\' y=\'55\' fill=\'white\' font-size=\'40\' font-family=\'sans-serif\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-weight=\'bold\'>A</text></svg>'">
                             </div>
-                            <div class="logo-actions"
-                                style="display: flex; flex-direction: column; gap: 8px; justify-content: center;">
+                            <div class="logo-actions">
                                 <label class="btn-secondary btn-logo-upload" style="margin:0;">
                                     <input type="file" id="logoUploadInput" accept="image/*" hidden>
                                     Cambiar Logo
                                 </label>
-                                <p class="margin-preview mockup-notice" style="margin:0;">(Funcionalidad base lista.
-                                    Almacenamiento local
-                                    en pruebas).</p>
                             </div>
                         </div>
                     </div>
@@ -473,6 +470,36 @@
             </div>
         </div>
     </dialog>
+
+    <!-- Modal Éxito Venta -->
+    <dialog id="successSaleModal">
+        <div class="modal-dialog" style="max-width: 400px; text-align: center; padding: 40px 32px;">
+            <div style="font-size: 64px; margin-bottom: 8px;">✅</div>
+            <h2 style="color: var(--success-green); margin-bottom: 12px;">Venta Exitosa</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 32px; font-size: 16px;">La venta se ha registrado
+                correctamente.</p>
+            <div style="display: flex; justify-content: center;">
+                <button id="btnSuccessSaleOk" class="btn-primary"
+                    style="width: 100%; font-size: 16px; padding: 14px;">Aceptar</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- Onboarding Tutorial Overlay -->
+    <div id="tutorialOverlay" class="tutorial-overlay" hidden>
+        <div id="tutorialSpotlight" class="tutorial-spotlight"></div>
+        <div id="tutorialTooltip" class="tutorial-tooltip">
+            <div id="tutorialProgress" class="tutorial-progress">1/6</div>
+            <h3 id="tutorialTitle" class="tutorial-title">Título</h3>
+            <p id="tutorialDesc" class="tutorial-desc">Descripción...</p>
+            <div class="tutorial-actions">
+                <button id="btnTutorialBack" class="btn-secondary">Atrás</button>
+                <button id="btnTutorialNext" class="btn-primary">Siguiente</button>
+            </div>
+            <button id="btnTutorialSkip" class="btn-close"
+                style="position:absolute; top:8px; right:8px; width:24px; height:24px; font-size:12px;">✕</button>
+        </div>
+    </div>
 
     <!-- Logica de App -->
     <script src="app.js"></script>
