@@ -560,7 +560,6 @@ window.deleteProduct = function (id) {
 
 async function renderProducts(searchQuery = '') {
     const tbody = document.getElementById('productsTableBody');
-    tbody.innerHTML = '';
 
     let products = [];
 
@@ -602,6 +601,9 @@ async function renderProducts(searchQuery = '') {
     const filtered = uniqueProducts.filter(p =>
         (p.name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Limpiar el contenedor justo antes de pintar para evitar duplicados por asincronía
+    tbody.innerHTML = '';
 
     if (filtered.length === 0) {
         tbody.innerHTML = `
