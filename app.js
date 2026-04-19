@@ -705,8 +705,12 @@ window.viewProductHistory = async function (productId, product) {
 };
 document.getElementById('btnCloseProductHistoryModal')?.addEventListener('click', () => document.getElementById('productHistoryModal').close());
 
+let searchProductsTimeout;
 document.getElementById('searchProducts')?.addEventListener('input', (e) => {
-    renderProducts(e.target.value);
+    clearTimeout(searchProductsTimeout);
+    searchProductsTimeout = setTimeout(() => {
+        renderProducts(e.target.value.trim());
+    }, 300);
 });
 
 
