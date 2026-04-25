@@ -167,6 +167,41 @@
 
                         <div class="form-grid" style="margin-bottom: 12px; gap: 12px;">
                             <label>
+                                Tipo de Venta
+                                <select id="saleType" required>
+                                    <option value="contado">Contado</option>
+                                    <option value="credito">Crédito</option>
+                                </select>
+                            </label>
+
+                            <label id="salePaymentMethodContainer">
+                                Método de Pago
+                                <select id="salePaymentMethod">
+                                    <option value="Efectivo">Efectivo</option>
+                                    <option value="Yape">Yape</option>
+                                    <option value="Plin">Plin</option>
+                                    <option value="Transferencia">Transferencia</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </label>
+
+                            <label id="saleDueDateContainer" style="display: none;">
+                                Fecha de Vencimiento
+                                <input type="date" id="saleDueDate">
+                            </label>
+
+                            <label>
+                                Estado de Entrega
+                                <select id="saleDeliveryStatus" required>
+                                    <option value="Entregado" selected>Entregado</option>
+                                    <option value="Pendiente">Pendiente</option>
+                                    <option value="Sin registrar">Sin registrar</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="form-grid" style="margin-bottom: 12px; gap: 12px;">
+                            <label>
                                 IGV (18%)
                                 <input type="number" id="saleIgv" step="0.01" value="0.00">
                             </label>
@@ -248,7 +283,7 @@
                                 <th>Cliente</th>
                                 <th>Total</th>
                                 <th>Ganancia</th>
-                                <th>Estado</th>
+                                <th>Tipo/Estado</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>

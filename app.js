@@ -891,6 +891,30 @@ const saleShippingMode = document.getElementById('saleShippingMode');
 const saleManualCustomer = document.getElementById('saleManualCustomer');
 const saleProductSearch = document.getElementById('saleProductSearch');
 
+const saleType = document.getElementById('saleType');
+const salePaymentMethodContainer = document.getElementById('salePaymentMethodContainer');
+const saleDueDateContainer = document.getElementById('saleDueDateContainer');
+const saleDueDate = document.getElementById('saleDueDate');
+const salePaymentMethod = document.getElementById('salePaymentMethod');
+const saleDeliveryStatus = document.getElementById('saleDeliveryStatus');
+
+saleType?.addEventListener('change', (e) => {
+    if (e.target.value === 'contado') {
+        if (salePaymentMethodContainer) salePaymentMethodContainer.style.display = 'flex';
+        if (saleDueDateContainer) saleDueDateContainer.style.display = 'none';
+        if (saleDueDate) {
+            saleDueDate.required = false;
+            saleDueDate.value = '';
+        }
+        if (salePaymentMethod) salePaymentMethod.value = 'Efectivo';
+    } else {
+        if (salePaymentMethodContainer) salePaymentMethodContainer.style.display = 'none';
+        if (saleDueDateContainer) saleDueDateContainer.style.display = 'flex';
+        if (saleDueDate) saleDueDate.required = true;
+        if (salePaymentMethod) salePaymentMethod.value = '';
+    }
+});
+
 function matchesProductSearch(product, searchTerm) {
     const term = String(searchTerm || '').toLowerCase().trim();
     const termNoDash = term.replace(/-/g, '');
@@ -1005,6 +1029,13 @@ async function loadSalesForm() {
         resultsBox.innerHTML = '';
         resultsBox.style.display = 'none';
     }
+
+    if (saleType) {
+        saleType.value = 'contado';
+        saleType.dispatchEvent(new Event('change'));
+    }
+    if (saleDeliveryStatus) saleDeliveryStatus.value = 'Entregado';
+
     calculateSaleTotals();
 }
 
@@ -1100,6 +1131,19 @@ newSaleForm.addEventListener('submit', async (e) => {
         profit -= shippingCost;
     }
 
+    const sType = saleType?.value || 'contado';
+    const sPaymentMethod = sType === 'contado' ? (salePaymentMethod?.value || 'Efectivo') : null;
+    const sDueDate = sType === 'credito' ? saleDueDate?.value : null;
+
+    if (sType === 'credito' && !sDueDate) {
+        showToast('Debe ingresar fecha de vencimiento para ventas al crédito.', '⚠️');
+        return;
+    }
+
+    const sPaymentStatus = sType === 'contado' ? 'pagado' : 'pendiente';
+    const sBalanceDue = sType === 'contado' ? 0 : total;
+    const sDeliveryStatus = saleDeliveryStatus?.value || 'Entregado';
+
     const salePayload = {
         tenant_id: String(profile.tenant_id),
         product_id: productId,
@@ -1115,6 +1159,12 @@ newSaleForm.addEventListener('submit', async (e) => {
         shipping_cost: shippingCost,
         shipping_type: shippingType,
         shipping_mode: shippingMode,
+        sale_type: sType,
+        payment_method: sPaymentMethod,
+        due_date: sDueDate,
+        payment_status: sPaymentStatus,
+        balance_due: sBalanceDue,
+        delivery_status: sDeliveryStatus,
         created_by: profile.id,
         is_voided: false
     };
@@ -1278,9 +1328,25 @@ async function renderSalesHistory() {
 
         const isVoided = s.is_voided === true;
         const rowStyle = isVoided ? 'opacity: 0.6; background-color: rgba(255, 69, 58, 0.06);' : '';
-        const statusBadge = isVoided
-            ? '<span style="color:var(--danger-red); font-size:12px; font-weight:bold;">Anulada</span>'
-            : '<span style="color:var(--success-green); font-size:12px; font-weight:bold;">Activa</span>';
+
+        let statusBadge = '';
+        if (isVoided) {
+            statusBadge = '<span style="color:var(--danger-red); font-size:12px; font-weight:bold;">Anulada</span>';
+        } else {
+            const typeStr = s.sale_type === 'credito' ? 'CRÉDITO' : 'CONTADO';
+            const payStatus = s.payment_status === 'pendiente' ? 'Pendiente' : (s.payment_status === 'parcial' ? 'Parcial' : 'Pagado');
+            const typeColor = s.sale_type === 'credito' ? 'var(--accent-blue)' : 'var(--text-secondary)';
+            const payColor = s.payment_status === 'pagado' ? 'var(--success-green)' : (s.payment_status === 'parcial' ? 'orange' : 'var(--danger-red)');
+            const balanceText = s.sale_type === 'credito' ? `<br><span style="font-size:11px; color:var(--text-secondary);">Saldo: S/ ${Number(s.balance_due || 0).toFixed(2)}</span>` : '';
+
+            statusBadge = `
+                <div style="display:flex; flex-direction:column; gap:2px; line-height:1.2;">
+                    <span style="color:${typeColor}; font-size:11px; font-weight:bold;">${typeStr}</span>
+                    <span style="color:${payColor}; font-size:12px; font-weight:bold;">${payStatus}</span>
+                    ${balanceText}
+                </div>
+            `;
+        }
 
         const actionBtn = isVoided
             ? '<span style="color:var(--text-secondary); font-size:12px;">N/A</span>'
