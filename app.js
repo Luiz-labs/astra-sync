@@ -1348,6 +1348,10 @@ async function updateReports() {
 
             const tr = document.createElement('tr');
             if (s.is_voided) tr.style.opacity = '0.6';
+            tr.classList.add('sale-row-clickable');
+            tr.addEventListener('click', () => {
+                openSaleDetailModal(s);
+            });
             tr.innerHTML = `
                 <td>${dateStr}</td>
                 <td>${s.product_name_snapshot}</td>
@@ -1500,7 +1504,8 @@ async function renderSalesHistory() {
                     const btnCobrar = document.createElement('button');
                     btnCobrar.textContent = 'Cobrar';
                     btnCobrar.style.cssText = 'background:var(--success-green);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;';
-                    btnCobrar.addEventListener('click', () => {
+                    btnCobrar.addEventListener('click', (e) => {
+                        e.stopPropagation();
                         openPaymentModal(s.id, productName, customerName, s.balance_due);
                     });
                     container.appendChild(btnCobrar);
@@ -1509,7 +1514,8 @@ async function renderSalesHistory() {
                 const btnVerPagos = document.createElement('button');
                 btnVerPagos.textContent = 'Ver pagos';
                 btnVerPagos.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;';
-                btnVerPagos.addEventListener('click', () => {
+                btnVerPagos.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     openPaymentsHistoryModal(s.id, productName, customerName, s.total, s.balance_due);
                 });
                 container.appendChild(btnVerPagos);
@@ -1519,7 +1525,8 @@ async function renderSalesHistory() {
             btnAnular.textContent = '🗑️';
             btnAnular.title = 'Anular Venta';
             btnAnular.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--danger-red);font-size:16px;';
-            btnAnular.addEventListener('click', () => {
+            btnAnular.addEventListener('click', (e) => {
+                e.stopPropagation();
                 deleteSale(s.id, s.product_id, s.quantity);
             });
             container.appendChild(btnAnular);
@@ -1530,7 +1537,8 @@ async function renderSalesHistory() {
             btnHardDelete.textContent = 'Eliminar';
             btnHardDelete.title = 'Eliminar Venta Definitivamente';
             btnHardDelete.style.cssText = 'background:var(--text-primary);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;margin-left:8px;';
-            btnHardDelete.addEventListener('click', () => {
+            btnHardDelete.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const productName = s.product_name_snapshot || '';
                 const customerName = s.customer_name_snapshot || 'Cliente mostrador';
                 openHardDeleteSaleModal(s.id, productName, customerName, s.total);
@@ -1542,6 +1550,10 @@ async function renderSalesHistory() {
 
         const tr = document.createElement('tr');
         if (rowStyle) tr.style.cssText = rowStyle;
+        tr.classList.add('sale-row-clickable');
+        tr.addEventListener('click', () => {
+            openSaleDetailModal(s);
+        });
         tr.innerHTML = `
             <td>${formattedDate}</td>
             <td><strong>${s.product_name_snapshot}</strong></td>
@@ -1966,6 +1978,10 @@ async function renderPaymentsView() {
             }
 
             const tr = document.createElement('tr');
+            tr.classList.add('sale-row-clickable');
+            tr.addEventListener('click', () => {
+                openSaleDetailModal(s);
+            });
             
             const prodName = s.product_name_snapshot || 'Producto';
             const custName = s.customer_name_snapshot || 'Cliente mostrador';
@@ -1992,7 +2008,8 @@ async function renderPaymentsView() {
             const btnCobrar = document.createElement('button');
             btnCobrar.textContent = 'Cobrar';
             btnCobrar.style.cssText = 'background:var(--success-green);color:white;border:none;border-radius:4px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;';
-            btnCobrar.addEventListener('click', () => {
+            btnCobrar.addEventListener('click', (e) => {
+                e.stopPropagation();
                 openPaymentModal(s.id, prodName, custName, balance);
             });
             container.appendChild(btnCobrar);
@@ -2000,7 +2017,8 @@ async function renderPaymentsView() {
             const btnVerPagos = document.createElement('button');
             btnVerPagos.textContent = 'Historial';
             btnVerPagos.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;';
-            btnVerPagos.addEventListener('click', () => {
+            btnVerPagos.addEventListener('click', (e) => {
+                e.stopPropagation();
                 openPaymentsHistoryModal(s.id, prodName, custName, s.total, balance);
             });
             container.appendChild(btnVerPagos);
