@@ -1500,6 +1500,9 @@ window.openPaymentModal = function(saleId, productName, customerName, balanceDue
     document.getElementById('paymentAmount').max = balanceDue;
     document.getElementById('paymentMethod').value = 'Efectivo';
     
+    const fileInput = document.getElementById('paymentVoucherFile');
+    if (fileInput) fileInput.value = '';
+    
     paymentModal.showModal();
 };
 
@@ -1538,12 +1541,41 @@ paymentForm?.addEventListener('submit', async (e) => {
         return showToast('Error perfil', '❌'); 
     }
     
+    let voucherPath = null;
+    const fileInput = document.getElementById('paymentVoucherFile');
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        
+        if (file.size > 3 * 1024 * 1024) {
+            if (submitBtn) submitBtn.disabled = false;
+            return showToast('El comprobante no debe superar los 3 MB', '⚠️');
+        }
+        
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+            if (submitBtn) submitBtn.disabled = false;
+            return showToast('Formato de comprobante no válido', '⚠️');
+        }
+        
+        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
+        const filePath = `${profile.tenant_id}/${saleId}/${Date.now()}-${safeName}`;
+        
+        const { error: uploadErr } = await supabaseClient.storage.from('vouchers').upload(filePath, file);
+        if (uploadErr) {
+            console.error('Error al subir comprobante:', uploadErr);
+            if (submitBtn) submitBtn.disabled = false;
+            return showToast('Error al subir el comprobante', '❌');
+        }
+        
+        voucherPath = filePath;
+    }
+    
     const { error: insertErr } = await supabaseClient.from('sale_payments').insert({
         tenant_id: String(profile.tenant_id),
         sale_id: saleId,
         amount: amount,
         payment_method: method,
-        payment_voucher_path: null,
+        payment_voucher_path: voucherPath,
         created_by: profile.id
     });
     
@@ -1592,7 +1624,7 @@ window.openPaymentsHistoryModal = async function(saleId, productName, customerNa
     document.getElementById('paymentsHistoryBalance').textContent = Number(balance).toFixed(2);
     
     const tbody = document.getElementById('paymentsHistoryTableBody');
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Cargando pagos...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Cargando pagos...</td></tr>';
     
     paymentsHistoryModal.showModal();
     
@@ -1603,7 +1635,7 @@ window.openPaymentsHistoryModal = async function(saleId, productName, customerNa
         .order('created_at', { ascending: false });
         
     if (error) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--danger-red);">Error al cargar historial</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--danger-red);">Error al cargar historial</td></tr>';
         return;
     }
     
@@ -1631,19 +1663,52 @@ window.openPaymentsHistoryModal = async function(saleId, productName, customerNa
             tdMetodo.style.padding = '12px';
             tdMetodo.textContent = p.payment_method;
 
+            const tdComprobante = document.createElement('td');
+            tdComprobante.style.fontSize = '12px';
+            tdComprobante.style.padding = '12px';
+            tdComprobante.style.textAlign = 'center';
+            if (p.payment_voucher_path) {
+                const btnVer = document.createElement('button');
+                btnVer.textContent = 'Ver';
+                btnVer.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;';
+                btnVer.addEventListener('click', () => {
+                    openPaymentVoucher(p.payment_voucher_path);
+                });
+                tdComprobante.appendChild(btnVer);
+            } else {
+                tdComprobante.textContent = '-';
+            }
+
             tr.appendChild(tdFecha);
             tr.appendChild(tdMonto);
             tr.appendChild(tdMetodo);
+            tr.appendChild(tdComprobante);
             
             tbody.appendChild(tr);
         });
         
         totalPagado = Number(totalPagado.toFixed(2));
     } else {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--text-secondary); font-size:13px;">Sin pagos registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-secondary); font-size:13px;">Sin pagos registrados</td></tr>';
     }
     
     document.getElementById('paymentsHistoryPaid').textContent = totalPagado.toFixed(2);
+};
+
+window.openPaymentVoucher = async function(path) {
+    if (!path) return;
+    
+    try {
+        const { data, error } = await supabaseClient.storage.from('vouchers').createSignedUrl(path, 60);
+        if (error || !data) {
+            console.error('Error al generar url:', error);
+            return showToast('No se pudo abrir el comprobante', '❌');
+        }
+        window.open(data.signedUrl, '_blank');
+    } catch (err) {
+        console.error(err);
+        showToast('Error al procesar el comprobante', '❌');
+    }
 };
 
 document.getElementById('btnPaymentsHistoryModalClose')?.addEventListener('click', () => {

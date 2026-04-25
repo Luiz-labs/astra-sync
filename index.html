@@ -526,6 +526,10 @@
                         <option value="Otro">Otro</option>
                     </select>
                 </label>
+                <label style="margin-bottom: 0;">
+                    Comprobante opcional
+                    <input type="file" id="paymentVoucherFile" accept=".jpg,.jpeg,.png,.pdf" style="padding: 10px 16px;">
+                </label>
                 <div style="display: flex; gap: 12px; margin-top: 16px;">
                     <button type="button" id="btnPaymentCancel" class="btn-secondary" style="flex:1;">Cancelar</button>
                     <button type="submit" class="btn-primary" style="flex:1;">Confirmar Pago</button>
@@ -558,6 +562,7 @@
                             <th style="padding: 12px; font-size: 11px;">Fecha</th>
                             <th style="padding: 12px; font-size: 11px;">Monto</th>
                             <th style="padding: 12px; font-size: 11px;">Método</th>
+                            <th style="padding: 12px; font-size: 11px;">Comprobante</th>
                         </tr>
                     </thead>
                     <tbody id="paymentsHistoryTableBody">
