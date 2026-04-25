@@ -1407,14 +1407,17 @@ async function renderSalesHistory() {
         }
 
         const tdActions = document.createElement('td');
-        if (isVoided) {
-            tdActions.innerHTML = '<span style="color:var(--text-secondary); font-size:12px;">N/A</span>';
-        } else {
-            const container = document.createElement('div');
-            container.style.display = 'flex';
-            container.style.gap = '8px';
-            container.style.alignItems = 'center';
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.gap = '8px';
+        container.style.alignItems = 'center';
 
+        if (isVoided) {
+            const naSpan = document.createElement('span');
+            naSpan.style.cssText = 'color:var(--text-secondary); font-size:12px;';
+            naSpan.textContent = 'N/A';
+            container.appendChild(naSpan);
+        } else {
             if (s.sale_type === 'credito') {
                 const productName = s.product_name_snapshot || '';
                 const customerName = s.customer_name_snapshot || 'Cliente mostrador';
@@ -1446,22 +1449,22 @@ async function renderSalesHistory() {
                 deleteSale(s.id, s.product_id, s.quantity);
             });
             container.appendChild(btnAnular);
-            
-            if (canHardDeleteSales()) {
-                const btnHardDelete = document.createElement('button');
-                btnHardDelete.textContent = 'Eliminar';
-                btnHardDelete.title = 'Eliminar Venta Definitivamente';
-                btnHardDelete.style.cssText = 'background:var(--text-primary);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;margin-left:8px;';
-                btnHardDelete.addEventListener('click', () => {
-                    const productName = s.product_name_snapshot || '';
-                    const customerName = s.customer_name_snapshot || 'Cliente mostrador';
-                    openHardDeleteSaleModal(s.id, productName, customerName, s.total);
-                });
-                container.appendChild(btnHardDelete);
-            }
-            
-            tdActions.appendChild(container);
         }
+
+        if (canHardDeleteSales()) {
+            const btnHardDelete = document.createElement('button');
+            btnHardDelete.textContent = 'Eliminar';
+            btnHardDelete.title = 'Eliminar Venta Definitivamente';
+            btnHardDelete.style.cssText = 'background:var(--text-primary);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;margin-left:8px;';
+            btnHardDelete.addEventListener('click', () => {
+                const productName = s.product_name_snapshot || '';
+                const customerName = s.customer_name_snapshot || 'Cliente mostrador';
+                openHardDeleteSaleModal(s.id, productName, customerName, s.total);
+            });
+            container.appendChild(btnHardDelete);
+        }
+        
+        tdActions.appendChild(container);
 
         const tr = document.createElement('tr');
         if (rowStyle) tr.style.cssText = rowStyle;
