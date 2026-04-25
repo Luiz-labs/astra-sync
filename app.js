@@ -640,7 +640,7 @@ async function renderProducts(searchQuery = '') {
             }
         };
         tr.innerHTML = `
-            <td>${p.name}</td>
+            <td>${p.product_code || ''} — ${p.name}</td>
             <td>${p.category || 'General'}</td>
             <td>${proveedorVisual}</td>
             <td>S/ ${Number(p.cost).toFixed(2)}</td>
@@ -663,7 +663,7 @@ async function renderProducts(searchQuery = '') {
 
 window.viewProductHistory = async function (productId, product) {
     document.getElementById('productDetailInfo').innerHTML = `
-        <div><strong>Nombre:</strong> ${product.name}</div>
+        <div><strong>Nombre:</strong> ${product.product_code || ''} — ${product.name}</div>
         <div><strong>Categoría:</strong> ${product.category || '-'}</div>
         <div><strong>Stock:</strong> ${product.stock}</div>
         <div><strong>Precio:</strong> S/ ${Number(product.sale_price).toFixed(2)}</div>
