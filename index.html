@@ -48,6 +48,7 @@
                 <li><button data-target="salesView"><span class="nav-icon">💳</span> Ventas</button></li>
                 <li><button data-target="customersView"><span class="nav-icon">👥</span> Clientes</button></li>
                 <li><button data-target="salesHistoryView"><span class="nav-icon">📜</span> Historial</button></li>
+                <li><button data-target="paymentsView"><span class="nav-icon">💰</span> Cobros</button></li>
                 <li><button data-target="reportsView"><span class="nav-icon">📈</span> Reportes</button></li>
                 <li><button data-target="settingsView"><span class="nav-icon">⚙️</span> Ajustes</button></li>
                 <li class="nav-logout-item"><button id="btnLogout" class="btn-logout"><span class="nav-icon">🚪</span>
@@ -85,6 +86,13 @@
                             <p id="dashLowStock">0</p>
                         </div>
                     </div>
+                </div>
+
+                <div id="creditAlerts" class="card" style="margin-top: 24px;">
+                    <h3 style="margin-bottom: 16px;">⚠️ Alertas de crédito</h3>
+                    <div id="alertOverdue"></div>
+                    <div id="alertDueToday"></div>
+                    <div id="alertUpcoming"></div>
                 </div>
 
                 <div class="recent-sales">
@@ -287,6 +295,61 @@
                             </tr>
                         </thead>
                         <tbody id="salesHistoryTableBody">
+                            <!-- Llenado via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Vista Cobros -->
+            <section id="paymentsView" hidden>
+                <header>
+                    <h1>Cuentas por cobrar</h1>
+                </header>
+                <div class="dashboard-metrics" style="margin-bottom: 24px;">
+                    <div class="card card-gradient-1">
+                        <div class="card-icon">💵</div>
+                        <div>
+                            <h3 style="font-size: 13px; font-weight: normal; margin-bottom: 4px;">Total por cobrar</h3>
+                            <p id="paymentsTotalDue" style="font-size: 20px; font-weight: bold;">S/ 0.00</p>
+                        </div>
+                    </div>
+                    <div class="card" style="background: linear-gradient(135deg, #FF3B30 0%, #FF6B22 100%); color: white;">
+                        <div class="card-icon">⚠️</div>
+                        <div>
+                            <h3 style="font-size: 13px; font-weight: normal; margin-bottom: 4px; color: rgba(255,255,255,0.8);">Vencido</h3>
+                            <p id="paymentsTotalOverdue" style="font-size: 20px; font-weight: bold;">S/ 0.00</p>
+                        </div>
+                    </div>
+                    <div class="card" style="background: linear-gradient(135deg, #FF9500 0%, #FFCC00 100%); color: white;">
+                        <div class="card-icon">⏳</div>
+                        <div>
+                            <h3 style="font-size: 13px; font-weight: normal; margin-bottom: 4px; color: rgba(255,255,255,0.8);">Vence hoy</h3>
+                            <p id="paymentsTotalDueToday" style="font-size: 20px; font-weight: bold;">S/ 0.00</p>
+                        </div>
+                    </div>
+                    <div class="card card-gradient-1">
+                        <div class="card-icon">👥</div>
+                        <div>
+                            <h3 style="font-size: 13px; font-weight: normal; margin-bottom: 4px;">Créditos activos</h3>
+                            <p id="paymentsActiveCredits" style="font-size: 20px; font-weight: bold;">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="paymentsTable" style="table-layout: fixed; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Cliente</th>
+                                <th style="width: 20%;">Producto</th>
+                                <th style="width: 15%;">Saldo</th>
+                                <th style="width: 15%;">Vencimiento</th>
+                                <th style="width: 10%;">Estado</th>
+                                <th style="width: 15%;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentsTableBody">
                             <!-- Llenado via JS -->
                         </tbody>
                     </table>

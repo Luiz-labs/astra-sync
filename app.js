@@ -228,6 +228,7 @@ function navigateTo(targetId) {
     if (targetId === 'customersView') renderCustomers();
     if (targetId === 'salesView') loadSalesForm();
     if (targetId === 'salesHistoryView') renderSalesHistory();
+    if (targetId === 'paymentsView') renderPaymentsView();
     if (targetId === 'reportsView') updateReports();
 }
 
@@ -1300,6 +1301,8 @@ async function updateDashboard() {
     const lowStockCount = products.filter(p => p.stock <= 5).length;
     document.getElementById('dashLowStock').textContent = lowStockCount;
     document.getElementById('dashLowStock').style.color = lowStockCount > 0 ? 'var(--danger-red)' : 'inherit';
+
+    if (typeof renderCreditAlerts === 'function') await renderCreditAlerts();
 }
 
 async function updateReports() {
@@ -1631,6 +1634,7 @@ paymentForm?.addEventListener('submit', async (e) => {
     }
     
     await renderSalesHistory();
+    if (typeof renderPaymentsView === 'function') await renderPaymentsView();
     await updateDashboard();
     await updateReports();
     
@@ -1808,6 +1812,7 @@ document.getElementById('btnHardDeleteConfirm')?.addEventListener('click', async
         showToast('Venta eliminada definitivamente', '✅');
         
         await renderSalesHistory();
+        if (typeof renderPaymentsView === 'function') await renderPaymentsView();
         await updateDashboard();
         await updateReports();
         
@@ -1818,6 +1823,213 @@ document.getElementById('btnHardDeleteConfirm')?.addEventListener('click', async
         if (btn) btn.disabled = false;
     }
 });
+
+// --- COBROS VIEW ---
+async function renderPaymentsView() {
+    const tbody = document.getElementById('paymentsTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">Cargando cuentas por cobrar...</td></tr>';
+
+    try {
+        const { data: sales, error } = await supabaseClient
+            .from('sales')
+            .select('*')
+            .eq('sale_type', 'credito')
+            .eq('is_voided', false)
+            .neq('payment_status', 'pagado')
+            .order('due_date', { ascending: true })
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        let totalDue = 0;
+        let totalOverdue = 0;
+        let totalDueToday = 0;
+        let activeCredits = 0;
+
+        tbody.innerHTML = '';
+
+        if (!sales || sales.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--text-secondary);">Sin cuentas por cobrar pendientes</td></tr>';
+            document.getElementById('paymentsTotalDue').textContent = 'S/ 0.00';
+            document.getElementById('paymentsTotalOverdue').textContent = 'S/ 0.00';
+            document.getElementById('paymentsTotalDueToday').textContent = 'S/ 0.00';
+            document.getElementById('paymentsActiveCredits').textContent = '0';
+            return;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        sales.forEach(s => {
+            const balance = Number(s.balance_due || 0);
+            totalDue += balance;
+            activeCredits++;
+
+            let statusStr = 'Sin fecha';
+            let badgeClass = 'badge-secondary';
+            let statusBadge = '<span class="badge" style="background:#f2f2f7;color:var(--text-secondary);">Sin fecha</span>';
+
+            const dueStr = s.due_date ? new Date(s.due_date + 'T00:00:00').toLocaleDateString() : 'No definida';
+
+            if (s.due_date) {
+                const dueDate = new Date(s.due_date + 'T00:00:00');
+                dueDate.setHours(0, 0, 0, 0);
+
+                const diffTime = dueDate.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 0) {
+                    statusStr = 'Vencido';
+                    statusBadge = '<span class="badge badge-danger">Vencido</span>';
+                    totalOverdue += balance;
+                } else if (diffDays === 0) {
+                    statusStr = 'Vence hoy';
+                    statusBadge = '<span class="badge badge-warning">Vence hoy</span>';
+                    totalDueToday += balance;
+                } else {
+                    statusStr = 'Por vencer';
+                    statusBadge = '<span class="badge badge-primary">Por vencer</span>';
+                }
+            }
+
+            const tr = document.createElement('tr');
+            
+            const prodName = s.product_name_snapshot || 'Producto';
+            const custName = s.customer_name_snapshot || 'Cliente mostrador';
+            
+            const safeCust = String(custName || '');
+            const safeProd = String(prodName || '');
+            
+            tr.innerHTML = `
+                <td><strong>${safeCust}</strong></td>
+                <td><span style="font-size: 13px; color: var(--text-secondary);">${safeProd}</span></td>
+                <td>
+                    <div style="font-size: 11px; color: var(--text-secondary);">Total: S/ ${Number(s.total || 0).toFixed(2)}</div>
+                    <div style="font-weight: bold; color: var(--danger-red);">Saldo: S/ ${Number(balance || 0).toFixed(2)}</div>
+                </td>
+                <td>${dueStr}</td>
+                <td>${statusBadge}</td>
+            `;
+
+            const tdActions = document.createElement('td');
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.gap = '8px';
+            
+            const btnCobrar = document.createElement('button');
+            btnCobrar.textContent = 'Cobrar';
+            btnCobrar.style.cssText = 'background:var(--success-green);color:white;border:none;border-radius:4px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;';
+            btnCobrar.addEventListener('click', () => {
+                openPaymentModal(s.id, prodName, custName, balance);
+            });
+            container.appendChild(btnCobrar);
+
+            const btnVerPagos = document.createElement('button');
+            btnVerPagos.textContent = 'Historial';
+            btnVerPagos.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;';
+            btnVerPagos.addEventListener('click', () => {
+                openPaymentsHistoryModal(s.id, prodName, custName, s.total, balance);
+            });
+            container.appendChild(btnVerPagos);
+
+            tdActions.appendChild(container);
+            tr.appendChild(tdActions);
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('paymentsTotalDue').textContent = `S/ ${totalDue.toFixed(2)}`;
+        document.getElementById('paymentsTotalOverdue').textContent = `S/ ${totalOverdue.toFixed(2)}`;
+        document.getElementById('paymentsTotalDueToday').textContent = `S/ ${totalDueToday.toFixed(2)}`;
+        document.getElementById('paymentsActiveCredits').textContent = activeCredits;
+
+    } catch (err) {
+        console.error('Error loading payments view:', err);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: var(--danger-red);">Error al cargar datos</td></tr>';
+    }
+}
+
+async function renderCreditAlerts() {
+    try {
+        const { data: sales, error } = await supabaseClient
+            .from('sales')
+            .select('balance_due, due_date')
+            .eq('sale_type', 'credito')
+            .eq('is_voided', false)
+            .neq('payment_status', 'pagado');
+
+        if (error) throw error;
+
+        let totalOverdue = 0;
+        let countOverdue = 0;
+        let totalDueToday = 0;
+        let countDueToday = 0;
+        let totalUpcoming = 0;
+        let countUpcoming = 0;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        sales?.forEach(s => {
+            if (!s.due_date) return;
+            const balance = Number(s.balance_due || 0);
+            const dueDate = new Date(s.due_date + 'T00:00:00');
+            dueDate.setHours(0, 0, 0, 0);
+
+            const diffTime = dueDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                totalOverdue += balance;
+                countOverdue++;
+            } else if (diffDays === 0) {
+                totalDueToday += balance;
+                countDueToday++;
+            } else {
+                totalUpcoming += balance;
+                countUpcoming++;
+            }
+        });
+
+        const alertOverdue = document.getElementById('alertOverdue');
+        const alertDueToday = document.getElementById('alertDueToday');
+        const alertUpcoming = document.getElementById('alertUpcoming');
+        
+        if (!alertOverdue || !alertDueToday || !alertUpcoming) return;
+
+        if (countOverdue === 0 && countDueToday === 0 && countUpcoming === 0) {
+            alertOverdue.innerHTML = '<p style="color:var(--text-secondary); font-size: 14px;">Sin alertas de crédito</p>';
+            alertDueToday.innerHTML = '';
+            alertUpcoming.innerHTML = '';
+            return;
+        }
+
+        alertOverdue.innerHTML = countOverdue > 0 
+            ? `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06);">
+                <span style="color:var(--danger-red); font-weight:bold;">🔴 ${countOverdue} vencido(s)</span>
+                <span style="font-weight:bold;">S/ ${Number(totalOverdue || 0).toFixed(2)}</span>
+               </div>` 
+            : '';
+
+        alertDueToday.innerHTML = countDueToday > 0 
+            ? `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06);">
+                <span style="color:#FF9500; font-weight:bold;">🟠 ${countDueToday} vence(n) hoy</span>
+                <span style="font-weight:bold;">S/ ${Number(totalDueToday || 0).toFixed(2)}</span>
+               </div>` 
+            : '';
+
+        alertUpcoming.innerHTML = countUpcoming > 0 
+            ? `<div style="display:flex; justify-content:space-between; padding:8px 0;">
+                <span style="color:var(--accent-blue); font-weight:bold;">🔵 ${countUpcoming} por vencer</span>
+                <span style="font-weight:bold;">S/ ${Number(totalUpcoming || 0).toFixed(2)}</span>
+               </div>` 
+            : '';
+
+    } catch (err) {
+        console.error('Error cargando alertas de credito:', err);
+    }
+}
 
 // --- INIT APP ---
 document.addEventListener('DOMContentLoaded', async () => {
