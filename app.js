@@ -1094,29 +1094,121 @@ async function loadSalesForm() {
     calculateSaleTotals();
 }
 
-function calculateSaleTotals() {
+let currentSaleCart = [];
+
+function renderSaleCart() {
+    const container = document.getElementById('saleCartItems');
+    const subtotalEl = document.getElementById('saleCartSubtotal');
+    if (!container || !subtotalEl) return;
+    
+    container.innerHTML = '';
+    let subtotal = 0;
+    
+    if (currentSaleCart.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 8px 0; opacity: 0.6;">Sin productos agregados</div>';
+    } else {
+        currentSaleCart.forEach((item, index) => {
+            subtotal += item.total;
+            
+            const div = document.createElement('div');
+            div.style.display = 'flex';
+            div.style.justifyContent = 'space-between';
+            div.style.alignItems = 'center';
+            div.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
+            div.style.paddingBottom = '4px';
+            
+            div.innerHTML = `
+                <div style="flex: 1;">
+                    <strong style="color: var(--text-primary);">${item.product_name_snapshot}</strong><br>
+                    <span style="font-size: 11px;">${item.quantity} x S/ ${item.unit_price.toFixed(2)}</span>
+                </div>
+                <div style="text-align: right; margin-right: 12px;">
+                    <strong style="color: var(--accent-blue);">S/ ${item.total.toFixed(2)}</strong>
+                </div>
+            `;
+            
+            const btnRemove = document.createElement('button');
+            btnRemove.textContent = '❌';
+            btnRemove.style.cssText = 'background:none; border:none; cursor:pointer; font-size:10px;';
+            btnRemove.addEventListener('click', () => {
+                currentSaleCart.splice(index, 1);
+                renderSaleCart();
+            });
+            
+            div.appendChild(btnRemove);
+            container.appendChild(div);
+        });
+    }
+    
+    subtotalEl.textContent = subtotal.toFixed(2);
+    calculateSaleTotals();
+}
+
+document.getElementById('btnAddSaleCart')?.addEventListener('click', () => {
     const selectedOpt = saleSelectProduct.options[saleSelectProduct.selectedIndex];
     if (!selectedOpt || !selectedOpt.value) {
-        saleTotalAmount.textContent = '0.00';
-        saleProfitAmount.textContent = '0.00';
-        return;
+        return showToast('Selecciona un producto primero.', '⚠️');
     }
 
+    const productId = selectedOpt.value;
+    const selectedProduct = (window._currentSaleProducts || []).find(p => String(p.id) === String(productId));
+    const productName = selectedProduct
+        ? `${selectedProduct.product_code ? selectedProduct.product_code + ' — ' : ''}${selectedProduct.name}`
+        : selectedOpt.textContent.split(' - S/ ')[0];
+        
     const price = parseFloat(selectedOpt.dataset.price);
     const cost = parseFloat(selectedOpt.dataset.cost);
     const maxStock = parseInt(selectedOpt.dataset.stock);
-
     let qty = parseInt(saleQuantity.value) || 1;
-    if (qty > maxStock) {
-        qty = maxStock;
-        saleQuantity.value = maxStock;
+
+    if (qty <= 0) return showToast('Cantidad debe ser mayor a 0.', '⚠️');
+
+    const existingIndex = currentSaleCart.findIndex(i => i.product_id === productId);
+    let currentQtyInCart = 0;
+    if (existingIndex >= 0) {
+        currentQtyInCart = currentSaleCart[existingIndex].quantity;
     }
+
+    if (currentQtyInCart + qty > maxStock) {
+        return showToast(`Stock insuficiente. Disponible: ${maxStock}, en carrito: ${currentQtyInCart}`, '⚠️');
+    }
+
+    if (existingIndex >= 0) {
+        currentSaleCart[existingIndex].quantity += qty;
+        currentSaleCart[existingIndex].total = currentSaleCart[existingIndex].quantity * price;
+        currentSaleCart[existingIndex].profit = currentSaleCart[existingIndex].quantity * (price - cost);
+    } else {
+        currentSaleCart.push({
+            product_id: productId,
+            product_name_snapshot: productName,
+            quantity: qty,
+            unit_price: price,
+            unit_cost: cost,
+            total: qty * price,
+            profit: qty * (price - cost),
+            stock_available: maxStock
+        });
+    }
+
+    saleQuantity.value = 1;
+    if (saleProductSearch) saleProductSearch.value = '';
+    renderSaleCart();
+});
+
+function calculateSaleTotals() {
+    let totalItems = 0;
+    let profitItems = 0;
+    
+    currentSaleCart.forEach(item => {
+        totalItems += item.total;
+        profitItems += item.profit;
+    });
 
     let shippingCost = parseFloat(saleShippingCost.value) || 0;
     let shippingMode = saleShippingMode.value;
 
-    let total = qty * price;
-    let profit = qty * (price - cost);
+    let total = totalItems;
+    let profit = profitItems;
 
     if (shippingMode === 'sumar_al_precio') {
         total += shippingCost;
@@ -1128,12 +1220,13 @@ function calculateSaleTotals() {
         saleIgv.value = (total * 0.18).toFixed(2);
     }
 
-    saleTotalAmount.textContent = total.toFixed(2);
-    saleProfitAmount.textContent = profit.toFixed(2);
+    const tEl = document.getElementById('saleCartTotal');
+    const pEl = document.getElementById('saleCartProfit');
+    if(tEl) tEl.textContent = total.toFixed(2);
+    if(pEl) pEl.textContent = profit.toFixed(2);
 }
 
 saleSelectProduct.addEventListener('change', calculateSaleTotals);
-saleQuantity.addEventListener('input', calculateSaleTotals);
 saleShippingCost.addEventListener('input', calculateSaleTotals);
 saleShippingMode.addEventListener('change', calculateSaleTotals);
 
@@ -1144,21 +1237,8 @@ saleProductSearch?.addEventListener('input', function () {
 newSaleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const selectedOpt = saleSelectProduct.options[saleSelectProduct.selectedIndex];
-    if (!selectedOpt || !selectedOpt.value) return;
-
-    const qty = parseInt(saleQuantity.value);
-    const productId = selectedOpt.value;
-    
-    const selectedProduct = (window._currentSaleProducts || []).find(p => String(p.id) === String(productId));
-    const productSnapshotName = selectedProduct
-        ? `${selectedProduct.product_code ? selectedProduct.product_code + ' — ' : ''}${selectedProduct.name}`
-        : selectedOpt.textContent.split(' - S/ ')[0];
-
-    const availableStock = parseInt(selectedOpt.dataset.stock);
-    if (qty > availableStock) {
-        showToast(`Stock insuficiente. Máximo disponible: ${availableStock}`, '❌');
-        return;
+    if (currentSaleCart.length === 0) {
+        return showToast('Agrega al menos un producto al carrito.', '⚠️');
     }
 
     let customerId = saleSelectCustomer.value || null;
@@ -1173,16 +1253,23 @@ newSaleForm.addEventListener('submit', async (e) => {
     let profile;
     try { profile = await getCurrentProfile(); } catch (e) { return showToast('Error perfil', '❌'); }
 
-    const unitPrice = parseFloat(selectedOpt.dataset.price || '0');
-    const unitCost = parseFloat(selectedOpt.dataset.cost || '0');
-
     const shippingCost = parseFloat(saleShippingCost.value) || 0;
     const shippingType = saleShippingType.value;
     const shippingMode = saleShippingMode.value;
     const igv = parseFloat(saleIgv.value) || 0;
 
-    let total = qty * unitPrice;
-    let profit = qty * (unitPrice - unitCost);
+    let totalItems = 0;
+    let profitItems = 0;
+    let totalQty = 0;
+    
+    currentSaleCart.forEach(item => {
+        totalItems += item.total;
+        profitItems += item.profit;
+        totalQty += item.quantity;
+    });
+
+    let total = totalItems;
+    let profit = profitItems;
 
     if (shippingMode === 'sumar_al_precio') {
         total += shippingCost;
@@ -1203,15 +1290,21 @@ newSaleForm.addEventListener('submit', async (e) => {
     const sBalanceDue = sType === 'contado' ? 0 : total;
     const sDeliveryStatus = saleDeliveryStatus?.value || 'Entregado';
 
+    const multiSaleName = currentSaleCart.length === 1 
+        ? currentSaleCart[0].product_name_snapshot 
+        : `Venta múltiple (${currentSaleCart.length} ítems)`;
+        
+    const mainProductId = currentSaleCart[0].product_id;
+
     const salePayload = {
         tenant_id: String(profile.tenant_id),
-        product_id: productId,
+        product_id: mainProductId,
         customer_id: customerId,
-        product_name_snapshot: productSnapshotName,
+        product_name_snapshot: multiSaleName,
         customer_name_snapshot: customerName,
-        quantity: qty,
-        unit_price: unitPrice,
-        unit_cost: unitCost,
+        quantity: totalQty,
+        unit_price: totalItems,
+        unit_cost: totalItems - profitItems,
         total: total,
         profit: profit,
         igv: igv,
@@ -1228,19 +1321,57 @@ newSaleForm.addEventListener('submit', async (e) => {
         is_voided: false
     };
 
-    const { error: saleErr } = await supabaseClient
+    const { data: saleData, error: saleErr } = await supabaseClient
         .from('sales')
-        .insert(salePayload);
+        .insert(salePayload)
+        .select('id')
+        .single();
 
     if (saleErr) {
         console.error('ERROR REAL AL GUARDAR VENTA:', saleErr);
         return showToast(`Error venta: ${saleErr.message}`, '❌');
     }
 
-    await supabaseClient.from('products').update({ stock: availableStock - qty }).eq('id', productId);
+    const newSaleId = saleData.id;
+
+    const saleItemsPayload = currentSaleCart.map(item => ({
+        tenant_id: String(profile.tenant_id),
+        sale_id: newSaleId,
+        product_id: item.product_id,
+        product_name_snapshot: item.product_name_snapshot,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        unit_cost: item.unit_cost,
+        total: item.total
+    }));
+
+    const { error: itemsErr } = await supabaseClient
+        .from('sale_items')
+        .insert(saleItemsPayload);
+
+    if (itemsErr) {
+        console.error('Error insertando sale_items:', itemsErr);
+        await supabaseClient.from('sales').delete().eq('id', newSaleId);
+        return showToast('Error guardando detalle. Venta anulada.', '❌');
+    }
+
+    for (const item of currentSaleCart) {
+        const { error: stockErr } = await supabaseClient.from('products').update({ 
+            stock: item.stock_available - item.quantity 
+        }).eq('id', item.product_id);
+        
+        if (stockErr) {
+            console.error(`Error actualizando stock para producto ${item.product_id}:`, stockErr);
+            await supabaseClient.from('sale_items').delete().eq('sale_id', newSaleId);
+            await supabaseClient.from('sales').delete().eq('id', newSaleId);
+            return showToast('Error actualizando stock. Venta revertida.', '❌');
+        }
+    }
 
     document.getElementById('successSaleModal').showModal();
     newSaleForm.reset();
+    currentSaleCart = [];
+    renderSaleCart();
     await loadSalesForm();
     await updateDashboard();
     await updateReports();

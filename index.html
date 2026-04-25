@@ -167,10 +167,24 @@
                             </select>
                         </label>
 
-                        <label>
-                            Cantidad
-                            <input type="number" id="saleQuantity" min="1" value="1" required>
-                        </label>
+                        <div style="display: flex; gap: 12px; align-items: flex-end; margin-bottom: 16px;">
+                            <label style="flex: 1; margin-bottom: 0;">
+                                Cantidad
+                                <input type="number" id="saleQuantity" min="1" value="1">
+                            </label>
+                            <button type="button" id="btnAddSaleCart" class="btn-secondary" style="flex: 1; height: 38px;">Agregar al carrito</button>
+                        </div>
+
+                        <div id="saleCartContainer" style="background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.05); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 16px;">
+                            <h4 style="margin-bottom: 8px; font-size: 13px; color: var(--text-primary);">🛒 Carrito de compras</h4>
+                            <div id="saleCartItems" style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px;">
+                                <div style="text-align: center; padding: 8px 0; opacity: 0.6;">Sin productos agregados</div>
+                            </div>
+                            <div style="border-top: 1px solid rgba(0,0,0,0.06); padding-top: 8px; font-size: 13px; display: flex; justify-content: space-between;">
+                                <span>Subtotal Ítems:</span>
+                                <strong>S/ <span id="saleCartSubtotal">0.00</span></strong>
+                            </div>
+                        </div>
 
                         <div class="form-grid" style="margin-bottom: 12px; gap: 12px;">
                             <label>
@@ -239,8 +253,8 @@
                         </div>
 
                         <div class="sale-totals">
-                            <p>Total: S/ <span id="saleTotalAmount">0.00</span></p>
-                            <p class="profit-highlight">Ganancia Esperada: S/ <span id="saleProfitAmount">0.00</span>
+                            <p>Total: S/ <span id="saleCartTotal">0.00</span></p>
+                            <p class="profit-highlight">Ganancia Esperada: S/ <span id="saleCartProfit">0.00</span>
                             </p>
                             <button type="submit" id="btnCompleteSale" class="btn-primary">Completar Venta</button>
                         </div>
