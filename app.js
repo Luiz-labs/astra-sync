@@ -597,6 +597,24 @@ async function renderProducts(searchQuery = '') {
 
     const uniqueProducts = Array.from(uniqueMap.values());
 
+    // Poblar dropdown de categorías
+    const filterSelect = document.getElementById('filterProductCategory');
+    const selectedCategory = filterSelect ? filterSelect.value : '';
+    
+    if (filterSelect && uniqueProducts.length > 0) {
+        const categories = [...new Set(uniqueProducts.map(p => p.category || 'General'))].sort();
+        const currentVal = filterSelect.value;
+        
+        filterSelect.innerHTML = '<option value="">Todas las categorías</option>';
+        categories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            if (cat === currentVal) opt.selected = true;
+            filterSelect.appendChild(opt);
+        });
+    }
+
     // Aplicar búsqueda sobre lista limpia
     const term = String(searchQuery || '').toLowerCase().trim();
     const termNoDash = term.replace(/-/g, '');
@@ -605,14 +623,19 @@ async function renderProducts(searchQuery = '') {
         const name = String(p.name || '').toLowerCase();
         const code = String(p.product_code || '').toLowerCase();
         const codeNoDash = code.replace(/-/g, '');
+        const cat = p.category || 'General';
 
-        return (
+        const matchesSearch = (
             !term ||
             name.includes(term) ||
             code.includes(term) ||
             codeNoDash.includes(termNoDash) ||
             `${code} ${name}`.includes(term)
         );
+        
+        const matchesCategory = !selectedCategory || cat === selectedCategory;
+
+        return matchesSearch && matchesCategory;
     });
 
     // Limpiar el contenedor justo antes de pintar para evitar duplicados por asincronía
@@ -724,6 +747,10 @@ document.getElementById('searchProducts')?.addEventListener('input', (e) => {
     searchProductsTimeout = setTimeout(() => {
         renderProducts(e.target.value.trim());
     }, 300);
+});
+
+document.getElementById('filterProductCategory')?.addEventListener('change', () => {
+    renderProducts(document.getElementById('searchProducts')?.value.trim() || '');
 });
 
 
@@ -1352,31 +1379,48 @@ async function renderSalesHistory() {
             `;
         }
 
-        let actionBtn = '';
+        const tdActions = document.createElement('td');
         if (isVoided) {
-            actionBtn = '<span style="color:var(--text-secondary); font-size:12px;">N/A</span>';
+            tdActions.innerHTML = '<span style="color:var(--text-secondary); font-size:12px;">N/A</span>';
         } else {
-            actionBtn = `<button onclick="deleteSale('${s.id}', '${s.product_id}', ${s.quantity})" style="background:none;border:none;cursor:pointer;color:var(--danger-red);font-size:16px;" title="Anular Venta">🗑️</button>`;
-            
-            if (s.sale_type === 'credito') {
-                const safeProduct = String(s.product_name_snapshot || '').replace(/'/g, "\\'");
-                const safeCustomer = String(s.customer_name_snapshot || 'Cliente mostrador').replace(/'/g, "\\'");
-                
-                let cobrarBtn = '';
-                if (s.payment_status !== 'pagado') {
-                    cobrarBtn = `<button onclick="openPaymentModal('${s.id}', '${safeProduct}', '${safeCustomer}', ${s.balance_due})" style="background:var(--success-green);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;">Cobrar</button>`;
-                }
-                
-                const verPagosBtn = `<button onclick="openPaymentsHistoryModal('${s.id}', '${safeProduct}', '${safeCustomer}', ${s.total}, ${s.balance_due})" style="background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;">Ver pagos</button>`;
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.gap = '8px';
+            container.style.alignItems = 'center';
 
-                actionBtn = `
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        ${cobrarBtn}
-                        ${verPagosBtn}
-                        ${actionBtn}
-                    </div>
-                `;
+            if (s.sale_type === 'credito') {
+                const productName = s.product_name_snapshot || '';
+                const customerName = s.customer_name_snapshot || 'Cliente mostrador';
+
+                if (s.payment_status !== 'pagado') {
+                    const btnCobrar = document.createElement('button');
+                    btnCobrar.textContent = 'Cobrar';
+                    btnCobrar.style.cssText = 'background:var(--success-green);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;';
+                    btnCobrar.addEventListener('click', () => {
+                        openPaymentModal(s.id, productName, customerName, s.balance_due);
+                    });
+                    container.appendChild(btnCobrar);
+                }
+
+                const btnVerPagos = document.createElement('button');
+                btnVerPagos.textContent = 'Ver pagos';
+                btnVerPagos.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;';
+                btnVerPagos.addEventListener('click', () => {
+                    openPaymentsHistoryModal(s.id, productName, customerName, s.total, s.balance_due);
+                });
+                container.appendChild(btnVerPagos);
             }
+
+            const btnAnular = document.createElement('button');
+            btnAnular.textContent = '🗑️';
+            btnAnular.title = 'Anular Venta';
+            btnAnular.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--danger-red);font-size:16px;';
+            btnAnular.addEventListener('click', () => {
+                deleteSale(s.id, s.product_id, s.quantity);
+            });
+            container.appendChild(btnAnular);
+            
+            tdActions.appendChild(container);
         }
 
         const tr = document.createElement('tr');
@@ -1389,8 +1433,8 @@ async function renderSalesHistory() {
             <td><strong>S/ ${s.total.toFixed(2)}</strong></td>
             <td style="color: var(--success-green);">S/ ${s.profit.toFixed(2)}</td>
             <td>${statusBadge}</td>
-            <td>${actionBtn}</td>
         `;
+        tr.appendChild(tdActions);
         tbody.appendChild(tr);
     });
 }

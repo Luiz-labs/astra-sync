@@ -104,8 +104,11 @@
                     </div>
                 </header>
 
-                <div class="search-bar">
-                    <input type="search" id="searchProducts" placeholder="Buscar productos por nombre...">
+                <div class="search-bar" style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <input type="search" id="searchProducts" placeholder="Buscar productos por nombre o código..." style="flex: 1;">
+                    <select id="filterProductCategory" style="padding: 12px 16px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-size: 14px; background: white; min-width: 200px;">
+                        <option value="">Todas las categorías</option>
+                    </select>
                 </div>
 
                 <div class="table-container">
@@ -532,6 +535,40 @@
                     <button type="submit" class="btn-primary" style="flex:1;">Confirmar Pago</button>
                 </div>
             </form>
+        </div>
+    </dialog>
+
+    <!-- Modal Historial de Pagos -->
+    <dialog id="paymentsHistoryModal">
+        <div class="modal-dialog" style="max-width: 500px; padding: 32px;">
+            <header>
+                <h2 style="font-size: 20px;">Historial de Pagos</h2>
+                <button type="button" class="btn-close" id="btnPaymentsHistoryModalClose">✕</button>
+            </header>
+            
+            <div style="background: rgba(10, 132, 255, 0.08); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 20px;">
+                <p style="font-size: 14px; font-weight: bold; color: var(--text-primary); margin-bottom: 8px;" id="paymentsHistorySaleInfo">Producto - Cliente</p>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary);">
+                    <span>Total: <strong style="color:var(--text-primary);">S/ <span id="paymentsHistoryTotal">0.00</span></strong></span>
+                    <span>Pagado: <strong style="color:var(--success-green);">S/ <span id="paymentsHistoryPaid">0.00</span></strong></span>
+                    <span>Saldo: <strong style="color:var(--danger-red);">S/ <span id="paymentsHistoryBalance">0.00</span></strong></span>
+                </div>
+            </div>
+
+            <div class="table-container view-spacer" style="max-height: 300px; overflow-y: auto;">
+                <table id="paymentsHistoryTable">
+                    <thead>
+                        <tr>
+                            <th style="padding: 12px; font-size: 11px;">Fecha</th>
+                            <th style="padding: 12px; font-size: 11px;">Monto</th>
+                            <th style="padding: 12px; font-size: 11px;">Método</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentsHistoryTableBody">
+                        <!-- Llenado via JS -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </dialog>
 
