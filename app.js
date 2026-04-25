@@ -1094,7 +1094,11 @@ newSaleForm.addEventListener('submit', async (e) => {
 
     const qty = parseInt(saleQuantity.value);
     const productId = selectedOpt.value;
-    const productName = selectedOpt.text.split(' -')[0];
+    
+    const selectedProduct = (window._currentSaleProducts || []).find(p => String(p.id) === String(productId));
+    const productSnapshotName = selectedProduct
+        ? `${selectedProduct.product_code ? selectedProduct.product_code + ' — ' : ''}${selectedProduct.name}`
+        : selectedOpt.textContent.split(' - S/ ')[0];
 
     const availableStock = parseInt(selectedOpt.dataset.stock);
     if (qty > availableStock) {
@@ -1148,7 +1152,7 @@ newSaleForm.addEventListener('submit', async (e) => {
         tenant_id: String(profile.tenant_id),
         product_id: productId,
         customer_id: customerId,
-        product_name_snapshot: productName,
+        product_name_snapshot: productSnapshotName,
         customer_name_snapshot: customerName,
         quantity: qty,
         unit_price: unitPrice,
