@@ -1705,10 +1705,53 @@ window.deleteSale = function (saleId, productId, qty) {
         let profile;
         try { profile = await getCurrentProfile(); } catch (e) { return showToast('Error de usuario', '❌'); }
 
-        if (productId) {
+        const { data: saleItems, error: saleItemsErr } = await supabaseClient
+            .from('sale_items')
+            .select('product_id, quantity')
+            .eq('sale_id', saleId);
+
+        if (saleItemsErr) {
+            console.error('Error obteniendo detalle de venta:', saleItemsErr);
+            return showToast('No se pudo restaurar el stock de la venta.', '❌');
+        }
+
+        if (saleItems && saleItems.length > 0) {
+            for (const item of saleItems) {
+                if (!item.product_id) continue;
+
+                const { data: p, error: productErr } = await supabaseClient
+                    .from('products')
+                    .select('stock')
+                    .eq('id', item.product_id)
+                    .single();
+
+                if (productErr) {
+                    console.error('Error obteniendo producto para restaurar stock:', productErr);
+                    return showToast('No se pudo restaurar el stock de la venta.', '❌');
+                }
+
+                const { error: stockUpdateErr } = await supabaseClient
+                    .from('products')
+                    .update({ stock: p.stock + Number(item.quantity || 0) })
+                    .eq('id', item.product_id);
+
+                if (stockUpdateErr) {
+                    console.error('Error restaurando stock:', stockUpdateErr);
+                    return showToast('No se pudo restaurar el stock de la venta.', '❌');
+                }
+            }
+        } else if (productId) {
             const { data: p } = await supabaseClient.from('products').select('stock').eq('id', productId).single();
             if (p) {
-                await supabaseClient.from('products').update({ stock: p.stock + qty }).eq('id', productId);
+                const { error: stockUpdateErr } = await supabaseClient
+                    .from('products')
+                    .update({ stock: p.stock + qty })
+                    .eq('id', productId);
+
+                if (stockUpdateErr) {
+                    console.error('Error restaurando stock:', stockUpdateErr);
+                    return showToast('No se pudo restaurar el stock de la venta.', '❌');
+                }
             }
         }
 
