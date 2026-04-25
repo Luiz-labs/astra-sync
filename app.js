@@ -1368,6 +1368,77 @@ async function updateReports() {
 
 document.getElementById('reportTimeframe').addEventListener('change', updateReports);
 
+// --- SALE DETAIL MODAL ---
+window.openSaleDetailModal = async function(sale) {
+    const modal = document.getElementById('saleDetailModal');
+    const tbody = document.getElementById('sdmItemsBody');
+    if (!modal || !tbody) return;
+
+    // Llenar cabecera
+    document.getElementById('sdmCustomer').textContent = sale.customer_name_snapshot || 'Cliente mostrador';
+    document.getElementById('sdmDate').textContent = new Date(sale.created_at).toLocaleString();
+    document.getElementById('sdmStatus').textContent = sale.payment_status || 'Pendiente';
+    document.getElementById('sdmType').textContent = sale.sale_type || 'Contado';
+    document.getElementById('sdmTotal').textContent = 'S/ ' + Number(sale.total || 0).toFixed(2);
+
+    // Limpiar tabla
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Cargando ítems...</td></tr>';
+    modal.showModal();
+
+    try {
+        const { data: items, error } = await supabaseClient
+            .from('sale_items')
+            .select('*')
+            .eq('sale_id', sale.id);
+
+        if (error) throw error;
+
+        tbody.innerHTML = '';
+
+        if (!items || items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-secondary);">Sin detalle disponible</td></tr>';
+        } else {
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid rgba(0,0,0,0.04)';
+
+                const tdProd = document.createElement('td');
+                tdProd.style.padding = '8px';
+                // El snapshot del nombre del producto no está en sale_items, 
+                // en una fase real se sacaría de products o se guardaría snapshot en sale_items.
+                // Por ahora usamos el ID o un placeholder si no hay snapshot en item.
+                tdProd.textContent = item.product_name_snapshot || `Producto ID: ${item.product_id}`;
+
+                const tdQty = document.createElement('td');
+                tdQty.style.padding = '8px';
+                tdQty.style.textAlignment = 'center';
+                tdQty.style.textAlign = 'center';
+                tdQty.textContent = item.quantity;
+
+                const tdPrice = document.createElement('td');
+                tdPrice.style.padding = '8px';
+                tdPrice.style.textAlign = 'right';
+                tdPrice.textContent = 'S/ ' + Number(item.unit_price || 0).toFixed(2);
+
+                const tdSub = document.createElement('td');
+                tdSub.style.padding = '8px';
+                tdSub.style.textAlign = 'right';
+                tdSub.style.fontWeight = 'bold';
+                tdSub.textContent = 'S/ ' + Number(item.total || 0).toFixed(2);
+
+                tr.appendChild(tdProd);
+                tr.appendChild(tdQty);
+                tr.appendChild(tdPrice);
+                tr.appendChild(tdSub);
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (err) {
+        console.error('Error cargando detalle:', err);
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--danger-red);">Error al cargar el detalle</td></tr>';
+    }
+};
+
 // --- SALES HISTORY LOGIC ---
 async function renderSalesHistory() {
     const tbody = document.getElementById('salesHistoryTableBody');
