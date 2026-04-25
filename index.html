@@ -104,25 +104,21 @@
                     </div>
                 </header>
 
-                <div class="search-bar" style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <input type="search" id="searchProducts" placeholder="Buscar productos por nombre o código..." style="flex: 1;">
-                    <select id="filterProductCategory" style="padding: 12px 16px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-size: 14px; background: white; min-width: 200px;">
-                        <option value="">Todas las categorías</option>
-                    </select>
+                <div class="products-toolbar">
+                    <div class="search-bar product-search-main">
+                        <input type="search" id="searchProducts" placeholder="Buscar por código, nombre o palabra clave...">
+                    </div>
+                    <div id="productCategoryChips" class="product-category-chips"></div>
                 </div>
 
                 <div class="table-container">
                     <table id="productsTable">
                         <thead>
                             <tr>
-                                <th>Nombre</th>
-                                <th>Categoría</th>
-                                <th>Proveedor</th>
-                                <th>Costo</th>
-                                <th>Precio Venta</th>
-                                <th>Margen</th>
+                                <th>Producto</th>
+                                <th>Precio</th>
                                 <th>Stock</th>
-                                <th>Registro</th>
+                                <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>

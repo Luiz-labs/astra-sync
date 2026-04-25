@@ -597,21 +597,32 @@ async function renderProducts(searchQuery = '') {
 
     const uniqueProducts = Array.from(uniqueMap.values());
 
-    // Poblar dropdown de categorías
-    const filterSelect = document.getElementById('filterProductCategory');
-    const selectedCategory = filterSelect ? filterSelect.value : '';
+    // Poblar chips de categorías
+    const chipsContainer = document.getElementById('productCategoryChips');
+    if (typeof window.selectedProductCategory === 'undefined') {
+        window.selectedProductCategory = '';
+    }
     
-    if (filterSelect && uniqueProducts.length > 0) {
-        const categories = [...new Set(uniqueProducts.map(p => p.category || 'General'))].sort();
-        const currentVal = filterSelect.value;
+    if (chipsContainer && uniqueProducts.length > 0) {
+        const categories = ['Todas', ...new Set(uniqueProducts.map(p => p.category || 'General'))].sort((a, b) => {
+            if (a === 'Todas') return -1;
+            if (b === 'Todas') return 1;
+            return a.localeCompare(b);
+        });
         
-        filterSelect.innerHTML = '<option value="">Todas las categorías</option>';
+        chipsContainer.innerHTML = '';
         categories.forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat;
-            opt.textContent = cat;
-            if (cat === currentVal) opt.selected = true;
-            filterSelect.appendChild(opt);
+            const chip = document.createElement('button');
+            chip.className = 'product-category-chip';
+            if ((cat === 'Todas' && window.selectedProductCategory === '') || cat === window.selectedProductCategory) {
+                chip.classList.add('active');
+            }
+            chip.textContent = cat;
+            chip.onclick = () => {
+                window.selectedProductCategory = cat === 'Todas' ? '' : cat;
+                renderProducts(document.getElementById('searchProducts')?.value.trim() || '');
+            };
+            chipsContainer.appendChild(chip);
         });
     }
 
@@ -633,7 +644,7 @@ async function renderProducts(searchQuery = '') {
             `${code} ${name}`.includes(term)
         );
         
-        const matchesCategory = !selectedCategory || cat === selectedCategory;
+        const matchesCategory = !window.selectedProductCategory || cat === window.selectedProductCategory;
 
         return matchesSearch && matchesCategory;
     });
@@ -663,8 +674,17 @@ async function renderProducts(searchQuery = '') {
             : 0;
 
         const proveedorVisual = p.supplier
-            ? p.supplier
-            : '<span style="color:var(--text-secondary);font-style:italic;">N/A</span>';
+            ? ` · Proveedor: ${p.supplier}`
+            : '';
+
+        let stockBadge = '';
+        if (p.stock === 0) {
+            stockBadge = '<span class="badge badge-danger">Sin stock</span>';
+        } else if (p.stock <= 3) {
+            stockBadge = '<span class="badge badge-warning">Bajo stock</span>';
+        } else {
+            stockBadge = '<span class="badge badge-success">Disponible</span>';
+        }
 
         const createdAt = p.created_at ? new Date(p.created_at).toLocaleDateString() : '-';
 
@@ -676,21 +696,24 @@ async function renderProducts(searchQuery = '') {
             }
         };
         tr.innerHTML = `
-            <td>${p.product_code || ''} — ${p.name}</td>
-            <td>${p.category || 'General'}</td>
-            <td>${proveedorVisual}</td>
-            <td>S/ ${Number(p.cost).toFixed(2)}</td>
-            <td>S/ ${Number(p.sale_price).toFixed(2)}</td>
-            <td>${margin}%</td>
             <td>
-                <span style="color: ${p.stock <= 5 ? 'var(--danger-red)' : 'inherit'}; font-weight: ${p.stock <= 5 ? 'bold' : 'normal'}">
-                    ${p.stock}
-                </span>
+                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 2px;">${p.product_code || ''}</div>
+                <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">${p.name}</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">Categoría: ${p.category || 'General'}${proveedorVisual}</div>
             </td>
-            <td>${createdAt}</td>
             <td>
-                <button onclick="editProduct('${p.id}')" style="background:none;border:none;cursor:pointer;color:var(--accent-blue);font-size:16px;">✏️</button>
-                <button onclick="deleteProduct('${p.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger-red);font-size:16px;margin-left:8px;">🗑️</button>
+                <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">S/ ${Number(p.sale_price).toFixed(2)}</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">Costo: S/ ${Number(p.cost).toFixed(2)}</div>
+            </td>
+            <td>
+                <span style="font-weight: bold; font-size: 15px;">${p.stock}</span>
+            </td>
+            <td>
+                ${stockBadge}
+            </td>
+            <td>
+                <button onclick="event.stopPropagation(); editProduct('${p.id}')" style="background:none;border:none;cursor:pointer;color:var(--accent-blue);font-size:16px;">✏️</button>
+                <button onclick="event.stopPropagation(); deleteProduct('${p.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger-red);font-size:16px;margin-left:8px;">🗑️</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -749,9 +772,7 @@ document.getElementById('searchProducts')?.addEventListener('input', (e) => {
     }, 300);
 });
 
-document.getElementById('filterProductCategory')?.addEventListener('change', () => {
-    renderProducts(document.getElementById('searchProducts')?.value.trim() || '');
-});
+
 
 
 // --- CLIENTES CRUD ---
