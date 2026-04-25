@@ -497,6 +497,44 @@
         </div>
     </dialog>
 
+    <!-- Modal Cobro Parcial -->
+    <dialog id="paymentModal">
+        <div class="modal-dialog" style="max-width: 400px; padding: 32px;">
+            <header>
+                <h2 style="font-size: 20px;">Registrar Cobro</h2>
+                <button type="button" class="btn-close" id="btnPaymentModalClose">✕</button>
+            </header>
+            <form id="paymentForm" style="display:flex; flex-direction:column; gap:16px;">
+                <div style="background: rgba(10, 132, 255, 0.08); padding: 16px; border-radius: var(--radius-sm);">
+                    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;" id="paymentSaleInfo">Venta</p>
+                    <p style="font-size: 20px; font-weight: bold; color: var(--accent-blue);">Saldo Pendiente: S/ <span id="paymentBalanceDue">0.00</span></p>
+                </div>
+                
+                <input type="hidden" id="paymentSaleId">
+                <input type="hidden" id="paymentMaxAmount">
+
+                <label style="margin-bottom: 0;">
+                    Monto a Cobrar (S/)
+                    <input type="number" id="paymentAmount" step="0.01" min="0.01" required>
+                </label>
+                <label style="margin-bottom: 0;">
+                    Método de Pago
+                    <select id="paymentMethod" required>
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Yape">Yape</option>
+                        <option value="Plin">Plin</option>
+                        <option value="Transferencia">Transferencia</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </label>
+                <div style="display: flex; gap: 12px; margin-top: 16px;">
+                    <button type="button" id="btnPaymentCancel" class="btn-secondary" style="flex:1;">Cancelar</button>
+                    <button type="submit" class="btn-primary" style="flex:1;">Confirmar Pago</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
     <!-- Modal Confirmación -->
     <dialog id="confirmModal">
         <div class="modal-dialog" style="max-width: 400px; text-align: center; padding: 40px 32px;">

@@ -1352,9 +1352,23 @@ async function renderSalesHistory() {
             `;
         }
 
-        const actionBtn = isVoided
-            ? '<span style="color:var(--text-secondary); font-size:12px;">N/A</span>'
-            : `<button onclick="deleteSale('${s.id}', '${s.product_id}', ${s.quantity})" style="background:none;border:none;cursor:pointer;color:var(--danger-red);font-size:16px;">🗑️</button>`;
+        let actionBtn = '';
+        if (isVoided) {
+            actionBtn = '<span style="color:var(--text-secondary); font-size:12px;">N/A</span>';
+        } else {
+            actionBtn = `<button onclick="deleteSale('${s.id}', '${s.product_id}', ${s.quantity})" style="background:none;border:none;cursor:pointer;color:var(--danger-red);font-size:16px;" title="Anular Venta">🗑️</button>`;
+            
+            if (s.sale_type === 'credito' && s.payment_status !== 'pagado') {
+                const safeProduct = String(s.product_name_snapshot || '').replace(/'/g, "\\'");
+                const safeCustomer = String(s.customer_name_snapshot || 'Cliente mostrador').replace(/'/g, "\\'");
+                actionBtn = `
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <button onclick="openPaymentModal('${s.id}', '${safeProduct}', '${safeCustomer}', ${s.balance_due})" style="background:var(--success-green);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;">Cobrar</button>
+                        ${actionBtn}
+                    </div>
+                `;
+            }
+        }
 
         const tr = document.createElement('tr');
         if (rowStyle) tr.style.cssText = rowStyle;
@@ -1397,6 +1411,103 @@ window.deleteSale = function (saleId, productId, qty) {
         await updateReports();
     });
 };
+
+// --- COBROS (PAYMENTS) ---
+const paymentModal = document.getElementById('paymentModal');
+const paymentForm = document.getElementById('paymentForm');
+
+window.openPaymentModal = function(saleId, productName, customerName, balanceDue) {
+    document.getElementById('paymentSaleId').value = saleId;
+    document.getElementById('paymentMaxAmount').value = balanceDue;
+    document.getElementById('paymentSaleInfo').textContent = `${productName} - ${customerName}`;
+    document.getElementById('paymentBalanceDue').textContent = Number(balanceDue).toFixed(2);
+    
+    document.getElementById('paymentAmount').value = Number(balanceDue).toFixed(2);
+    document.getElementById('paymentAmount').max = balanceDue;
+    document.getElementById('paymentMethod').value = 'Efectivo';
+    
+    paymentModal.showModal();
+};
+
+document.getElementById('btnPaymentModalClose')?.addEventListener('click', () => {
+    paymentModal.close();
+});
+document.getElementById('btnPaymentCancel')?.addEventListener('click', () => {
+    paymentModal.close();
+});
+
+paymentForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const submitBtn = paymentForm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const saleId = document.getElementById('paymentSaleId').value;
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    const method = document.getElementById('paymentMethod').value;
+    const maxAmount = parseFloat(document.getElementById('paymentMaxAmount').value);
+    
+    if (amount <= 0) {
+        if (submitBtn) submitBtn.disabled = false;
+        return showToast('El monto debe ser mayor a 0', '⚠️');
+    }
+    if (amount > maxAmount) {
+        if (submitBtn) submitBtn.disabled = false;
+        return showToast('El monto no puede superar el saldo pendiente', '⚠️');
+    }
+    
+    let profile;
+    try { 
+        profile = await getCurrentProfile(); 
+    } catch (err) { 
+        if (submitBtn) submitBtn.disabled = false;
+        return showToast('Error perfil', '❌'); 
+    }
+    
+    const { error: insertErr } = await supabaseClient.from('sale_payments').insert({
+        tenant_id: String(profile.tenant_id),
+        sale_id: saleId,
+        amount: amount,
+        payment_method: method,
+        payment_voucher_path: null,
+        created_by: profile.id
+    });
+    
+    if (insertErr) {
+        console.error('Error al registrar cobro:', insertErr);
+        if (submitBtn) submitBtn.disabled = false;
+        return showToast('Error al registrar el cobro', '❌');
+    }
+    
+    const newBalanceRaw = maxAmount - amount;
+    const newBalance = Math.max(0, Number(newBalanceRaw.toFixed(2)));
+    const newStatus = newBalance <= 0 ? 'pagado' : 'parcial';
+    
+    const { error: updateErr } = await supabaseClient.from('sales').update({
+        balance_due: newBalance,
+        payment_status: newStatus
+    }).eq('id', saleId);
+    
+    if (updateErr) {
+        console.error('Error al actualizar venta:', updateErr);
+        if (submitBtn) submitBtn.disabled = false;
+        return showToast('Cobro registrado pero error al actualizar venta', '⚠️');
+    }
+    
+    paymentModal.close();
+    
+    if (newStatus === 'pagado') {
+        showToast('Pago completo registrado correctamente', '✅');
+    } else {
+        showToast('Pago parcial registrado correctamente', '✅');
+    }
+    
+    await renderSalesHistory();
+    await updateDashboard();
+    await updateReports();
+    
+    if (submitBtn) submitBtn.disabled = false;
+});
 
 // --- INIT APP ---
 document.addEventListener('DOMContentLoaded', async () => {
