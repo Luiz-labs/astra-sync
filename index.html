@@ -150,7 +150,12 @@
 
                         <label>
                             Producto
-                            <select id="saleSelectProduct" required>
+                            <div class="sale-product-search-wrap">
+                                <input type="text" id="saleProductSearch"
+                                    placeholder="Buscar producto por código o nombre...">
+                                <div id="saleProductResults" class="sale-product-results"></div>
+                            </div>
+                            <select id="saleSelectProduct" required class="hidden-native-select">
                                 <option value="" disabled selected>-- Seleccionar Producto --</option>
                             </select>
                         </label>

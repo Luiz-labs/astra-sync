@@ -598,9 +598,22 @@ async function renderProducts(searchQuery = '') {
     const uniqueProducts = Array.from(uniqueMap.values());
 
     // Aplicar búsqueda sobre lista limpia
-    const filtered = uniqueProducts.filter(p =>
-        (p.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const term = String(searchQuery || '').toLowerCase().trim();
+    const termNoDash = term.replace(/-/g, '');
+
+    const filtered = uniqueProducts.filter(p => {
+        const name = String(p.name || '').toLowerCase();
+        const code = String(p.product_code || '').toLowerCase();
+        const codeNoDash = code.replace(/-/g, '');
+
+        return (
+            !term ||
+            name.includes(term) ||
+            code.includes(term) ||
+            codeNoDash.includes(termNoDash) ||
+            `${code} ${name}`.includes(term)
+        );
+    });
 
     // Limpiar el contenedor justo antes de pintar para evitar duplicados por asincronía
     tbody.innerHTML = '';
@@ -876,6 +889,79 @@ const saleShippingCost = document.getElementById('saleShippingCost');
 const saleShippingType = document.getElementById('saleShippingType');
 const saleShippingMode = document.getElementById('saleShippingMode');
 const saleManualCustomer = document.getElementById('saleManualCustomer');
+const saleProductSearch = document.getElementById('saleProductSearch');
+
+function matchesProductSearch(product, searchTerm) {
+    const term = String(searchTerm || '').toLowerCase().trim();
+    const termNoDash = term.replace(/-/g, '');
+    const name = String(product.name || '').toLowerCase();
+    const code = String(product.product_code || '').toLowerCase();
+    const codeNoDash = code.replace(/-/g, '');
+
+    return (
+        !term ||
+        name.includes(term) ||
+        code.includes(term) ||
+        codeNoDash.includes(termNoDash) ||
+        `${code} ${name}`.includes(term)
+    );
+}
+
+function renderSaleProductResults(searchTerm) {
+    const resultsBox = document.getElementById('saleProductResults');
+    if (!resultsBox) return;
+
+    const products = window._currentSaleProducts || [];
+    const term = String(searchTerm || '').trim();
+
+    resultsBox.innerHTML = '';
+
+    if (!term) {
+        resultsBox.style.display = 'none';
+        return;
+    }
+
+    const filtered = products
+        .filter(p => Number(p.stock || 0) > 0)
+        .filter(p => matchesProductSearch(p, term))
+        .slice(0, 12);
+
+    if (filtered.length === 0) {
+        resultsBox.innerHTML = '<div class="sale-product-result-empty">Sin coincidencias</div>';
+        resultsBox.style.display = 'block';
+        return;
+    }
+
+    filtered.forEach(p => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'sale-product-result-item';
+
+        const title = document.createElement('span');
+        title.className = 'sale-product-result-title';
+        title.textContent = `${p.product_code ? p.product_code + ' — ' : ''}${p.name}`;
+
+        const meta = document.createElement('span');
+        meta.className = 'sale-product-result-meta';
+        meta.textContent = `Stock: ${p.stock} | S/ ${Number(p.sale_price).toFixed(2)}`;
+
+        item.appendChild(title);
+        item.appendChild(meta);
+
+        item.addEventListener('click', () => {
+            saleProductSearch.value = `${p.product_code ? p.product_code + ' — ' : ''}${p.name}`;
+            saleSelectProduct.value = p.id;
+            saleSelectProduct.dispatchEvent(new Event('change'));
+            resultsBox.innerHTML = '';
+            resultsBox.style.display = 'none';
+            calculateSaleTotals();
+        });
+
+        resultsBox.appendChild(item);
+    });
+
+    resultsBox.style.display = 'block';
+}
 
 async function loadSalesForm() {
     let products = [];
@@ -885,6 +971,8 @@ async function loadSalesForm() {
         customers = await fetchCustomersFromSupabase();
     } catch (e) { }
 
+    window._currentSaleProducts = products;
+
     saleSelectProduct.innerHTML = '<option value="" disabled selected>-- Seleccionar Producto --</option>';
     products.forEach(p => {
         if (p.stock > 0) {
@@ -893,7 +981,8 @@ async function loadSalesForm() {
             opt.dataset.price = p.sale_price;
             opt.dataset.cost = p.cost;
             opt.dataset.stock = p.stock;
-            opt.textContent = `${p.name} - S/ ${p.sale_price} (Stock: ${p.stock})`;
+            opt.dataset.code = p.product_code || '';
+            opt.textContent = `${p.product_code ? p.product_code + ' - ' : ''}${p.name} - S/ ${p.sale_price} (Stock: ${p.stock})`;
             saleSelectProduct.appendChild(opt);
         }
     });
@@ -910,6 +999,12 @@ async function loadSalesForm() {
     saleIgv.value = '0.00';
     saleShippingCost.value = '0.00';
     saleManualCustomer.value = '';
+    const resultsBox = document.getElementById('saleProductResults');
+    if (saleProductSearch) saleProductSearch.value = '';
+    if (resultsBox) {
+        resultsBox.innerHTML = '';
+        resultsBox.style.display = 'none';
+    }
     calculateSaleTotals();
 }
 
@@ -955,6 +1050,10 @@ saleSelectProduct.addEventListener('change', calculateSaleTotals);
 saleQuantity.addEventListener('input', calculateSaleTotals);
 saleShippingCost.addEventListener('input', calculateSaleTotals);
 saleShippingMode.addEventListener('change', calculateSaleTotals);
+
+saleProductSearch?.addEventListener('input', function () {
+    renderSaleProductResults(this.value);
+});
 
 newSaleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
