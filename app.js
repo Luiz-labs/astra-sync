@@ -1358,12 +1358,21 @@ async function renderSalesHistory() {
         } else {
             actionBtn = `<button onclick="deleteSale('${s.id}', '${s.product_id}', ${s.quantity})" style="background:none;border:none;cursor:pointer;color:var(--danger-red);font-size:16px;" title="Anular Venta">🗑️</button>`;
             
-            if (s.sale_type === 'credito' && s.payment_status !== 'pagado') {
+            if (s.sale_type === 'credito') {
                 const safeProduct = String(s.product_name_snapshot || '').replace(/'/g, "\\'");
                 const safeCustomer = String(s.customer_name_snapshot || 'Cliente mostrador').replace(/'/g, "\\'");
+                
+                let cobrarBtn = '';
+                if (s.payment_status !== 'pagado') {
+                    cobrarBtn = `<button onclick="openPaymentModal('${s.id}', '${safeProduct}', '${safeCustomer}', ${s.balance_due})" style="background:var(--success-green);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;">Cobrar</button>`;
+                }
+                
+                const verPagosBtn = `<button onclick="openPaymentsHistoryModal('${s.id}', '${safeProduct}', '${safeCustomer}', ${s.total}, ${s.balance_due})" style="background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;">Ver pagos</button>`;
+
                 actionBtn = `
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <button onclick="openPaymentModal('${s.id}', '${safeProduct}', '${safeCustomer}', ${s.balance_due})" style="background:var(--success-green);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;">Cobrar</button>
+                        ${cobrarBtn}
+                        ${verPagosBtn}
                         ${actionBtn}
                     </div>
                 `;
@@ -1507,6 +1516,73 @@ paymentForm?.addEventListener('submit', async (e) => {
     await updateReports();
     
     if (submitBtn) submitBtn.disabled = false;
+});
+
+// --- HISTORIAL DE PAGOS ---
+const paymentsHistoryModal = document.getElementById('paymentsHistoryModal');
+
+window.openPaymentsHistoryModal = async function(saleId, productName, customerName, total, balance) {
+    document.getElementById('paymentsHistorySaleInfo').textContent = `${productName} - ${customerName}`;
+    document.getElementById('paymentsHistoryTotal').textContent = Number(total).toFixed(2);
+    document.getElementById('paymentsHistoryBalance').textContent = Number(balance).toFixed(2);
+    
+    const tbody = document.getElementById('paymentsHistoryTableBody');
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Cargando pagos...</td></tr>';
+    
+    paymentsHistoryModal.showModal();
+    
+    const { data: payments, error } = await supabaseClient
+        .from('sale_payments')
+        .select('*')
+        .eq('sale_id', saleId)
+        .order('created_at', { ascending: false });
+        
+    if (error) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--danger-red);">Error al cargar historial</td></tr>';
+        return;
+    }
+    
+    let totalPagado = 0;
+    if (payments && payments.length > 0) {
+        tbody.innerHTML = '';
+        payments.forEach(p => {
+            totalPagado += Number(p.amount);
+            
+            const tr = document.createElement('tr');
+            
+            const tdFecha = document.createElement('td');
+            tdFecha.style.fontSize = '12px';
+            tdFecha.style.padding = '12px';
+            tdFecha.textContent = new Date(p.created_at).toLocaleString();
+
+            const tdMonto = document.createElement('td');
+            tdMonto.style.fontSize = '13px';
+            tdMonto.style.fontWeight = 'bold';
+            tdMonto.style.padding = '12px';
+            tdMonto.textContent = `S/ ${Number(p.amount).toFixed(2)}`;
+
+            const tdMetodo = document.createElement('td');
+            tdMetodo.style.fontSize = '12px';
+            tdMetodo.style.padding = '12px';
+            tdMetodo.textContent = p.payment_method;
+
+            tr.appendChild(tdFecha);
+            tr.appendChild(tdMonto);
+            tr.appendChild(tdMetodo);
+            
+            tbody.appendChild(tr);
+        });
+        
+        totalPagado = Number(totalPagado.toFixed(2));
+    } else {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--text-secondary); font-size:13px;">Sin pagos registrados</td></tr>';
+    }
+    
+    document.getElementById('paymentsHistoryPaid').textContent = totalPagado.toFixed(2);
+};
+
+document.getElementById('btnPaymentsHistoryModalClose')?.addEventListener('click', () => {
+    paymentsHistoryModal.close();
 });
 
 // --- INIT APP ---
