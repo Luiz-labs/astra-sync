@@ -601,6 +601,30 @@
         </div>
     </dialog>
 
+    <!-- Modal Hard Delete Venta -->
+    <dialog id="hardDeleteSaleModal">
+        <div class="modal-dialog" style="max-width: 400px; padding: 32px; text-align: center;">
+            <header style="justify-content: center; margin-bottom: 16px;">
+                <h2 style="font-size: 20px; color: var(--danger-red);">Eliminación Definitiva</h2>
+            </header>
+            <p style="font-size: 14px; font-weight: bold; color: var(--text-primary); margin-bottom: 8px;" id="hardDeleteSaleInfo">Producto - Cliente</p>
+            <p style="font-size: 16px; font-weight: bold; color: var(--danger-red); margin-bottom: 16px;">Total: S/ <span id="hardDeleteSaleTotal">0.00</span></p>
+            <div style="background: rgba(255, 69, 58, 0.08); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 20px;">
+                <p style="font-size: 13px; color: var(--danger-red); font-weight: 600;">⚠️ Esta acción no se puede deshacer. Se borrarán los cobros y archivos asociados.</p>
+            </div>
+            
+            <label style="text-align: left; margin-bottom: 24px;">
+                Escribe ELIMINAR para confirmar:
+                <input type="text" id="hardDeleteConfirmInput" placeholder="ELIMINAR" autocomplete="off" style="margin-top: 8px;">
+            </label>
+            
+            <div style="display: flex; gap: 12px;">
+                <button type="button" id="btnHardDeleteCancel" class="btn-secondary" style="flex:1;">Cancelar</button>
+                <button type="button" id="btnHardDeleteConfirm" class="btn-primary" style="flex:1; background: var(--danger-red); box-shadow: none;">Eliminar definitivamente</button>
+            </div>
+        </div>
+    </dialog>
+
     <!-- Onboarding Tutorial Overlay -->
     <div id="tutorialOverlay" class="tutorial-overlay" hidden>
         <div id="tutorialSpotlight" class="tutorial-spotlight"></div>

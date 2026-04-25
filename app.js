@@ -16,9 +16,15 @@ const STORAGE_KEYS = {
 };
 
 // --- AUTH LOGIC ---
+function canHardDeleteSales() {
+    const email = window.currentUserEmail || '';
+    return email.toLowerCase().includes('luis.lecaros.d');
+}
+
 async function checkAuth() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const isLoggedIn = !!session;
+    window.currentUserEmail = session?.user?.email || '';
     const loginView = document.getElementById('loginView');
     const mainAppUI = document.getElementById('mainAppUI');
 
@@ -1441,6 +1447,19 @@ async function renderSalesHistory() {
             });
             container.appendChild(btnAnular);
             
+            if (canHardDeleteSales()) {
+                const btnHardDelete = document.createElement('button');
+                btnHardDelete.textContent = 'Eliminar';
+                btnHardDelete.title = 'Eliminar Venta Definitivamente';
+                btnHardDelete.style.cssText = 'background:var(--text-primary);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;margin-left:8px;';
+                btnHardDelete.addEventListener('click', () => {
+                    const productName = s.product_name_snapshot || '';
+                    const customerName = s.customer_name_snapshot || 'Cliente mostrador';
+                    openHardDeleteSaleModal(s.id, productName, customerName, s.total);
+                });
+                container.appendChild(btnHardDelete);
+            }
+            
             tdActions.appendChild(container);
         }
 
@@ -1713,6 +1732,88 @@ window.openPaymentVoucher = async function(path) {
 
 document.getElementById('btnPaymentsHistoryModalClose')?.addEventListener('click', () => {
     paymentsHistoryModal.close();
+});
+
+// --- HARD DELETE SALE ---
+const hardDeleteSaleModal = document.getElementById('hardDeleteSaleModal');
+let currentHardDeleteSaleId = null;
+
+window.openHardDeleteSaleModal = function(saleId, productName, customerName, total) {
+    currentHardDeleteSaleId = saleId;
+    document.getElementById('hardDeleteSaleInfo').textContent = `${productName} - ${customerName}`;
+    document.getElementById('hardDeleteSaleTotal').textContent = Number(total).toFixed(2);
+    document.getElementById('hardDeleteConfirmInput').value = '';
+    
+    hardDeleteSaleModal.showModal();
+};
+
+document.getElementById('btnHardDeleteCancel')?.addEventListener('click', () => {
+    hardDeleteSaleModal.close();
+});
+
+document.getElementById('btnHardDeleteConfirm')?.addEventListener('click', async () => {
+    const inputVal = document.getElementById('hardDeleteConfirmInput').value;
+    if (inputVal !== 'ELIMINAR') {
+        return showToast('Debe escribir ELIMINAR para confirmar', '⚠️');
+    }
+    
+    const btn = document.getElementById('btnHardDeleteConfirm');
+    if (btn) btn.disabled = true;
+    
+    try {
+        const { data: payments } = await supabaseClient
+            .from('sale_payments')
+            .select('id, payment_voucher_path')
+            .eq('sale_id', currentHardDeleteSaleId);
+            
+        if (payments && payments.length > 0) {
+            const voucherPaths = payments
+                .map(p => p.payment_voucher_path)
+                .filter(path => typeof path === 'string' && path.trim() !== '');
+                
+            if (voucherPaths.length > 0) {
+                const { error: storageErr } = await supabaseClient.storage.from('vouchers').remove(voucherPaths);
+                if (storageErr) {
+                    console.warn('Error borrando vouchers en storage:', storageErr);
+                }
+            }
+            
+            const { error: paymentsErr } = await supabaseClient
+                .from('sale_payments')
+                .delete()
+                .eq('sale_id', currentHardDeleteSaleId);
+                
+            if (paymentsErr) {
+                if (btn) btn.disabled = false;
+                console.error(paymentsErr);
+                return showToast('Error al borrar pagos asociados', '❌');
+            }
+        }
+        
+        const { error: saleErr } = await supabaseClient
+            .from('sales')
+            .delete()
+            .eq('id', currentHardDeleteSaleId);
+            
+        if (saleErr) {
+            if (btn) btn.disabled = false;
+            console.error(saleErr);
+            return showToast('Error al eliminar venta', '❌');
+        }
+        
+        hardDeleteSaleModal.close();
+        showToast('Venta eliminada definitivamente', '✅');
+        
+        await renderSalesHistory();
+        await updateDashboard();
+        await updateReports();
+        
+    } catch (err) {
+        console.error(err);
+        showToast('Error inesperado al eliminar', '❌');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 });
 
 // --- INIT APP ---
