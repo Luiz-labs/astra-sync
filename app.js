@@ -2020,59 +2020,143 @@ document.getElementById('btnHardDeleteConfirm')?.addEventListener('click', async
     if (inputVal !== 'ELIMINAR') {
         return showToast('Debe escribir ELIMINAR para confirmar', '⚠️');
     }
-    
+
     const btn = document.getElementById('btnHardDeleteConfirm');
     if (btn) btn.disabled = true;
-    
+
     try {
-        const { data: payments } = await supabaseClient
+        const { data: sale, error: saleFetchErr } = await supabaseClient
+            .from('sales')
+            .select('id, product_id, quantity, is_voided')
+            .eq('id', currentHardDeleteSaleId)
+            .single();
+
+        if (saleFetchErr || !sale) {
+            console.error('Error obteniendo venta para hard delete:', saleFetchErr);
+            return showToast('No se pudo obtener la venta a eliminar.', '❌');
+        }
+
+        if (sale.is_voided !== true) {
+            const { data: saleItems, error: saleItemsErr } = await supabaseClient
+                .from('sale_items')
+                .select('product_id, quantity')
+                .eq('sale_id', currentHardDeleteSaleId);
+
+            if (saleItemsErr) {
+                console.error('Error obteniendo sale_items para restaurar stock:', saleItemsErr);
+                return showToast('No se pudo restaurar el stock de la venta.', '❌');
+            }
+
+            if (saleItems && saleItems.length > 0) {
+                for (const item of saleItems) {
+                    if (!item.product_id) {
+                        console.error('sale_item sin product_id:', item);
+                        return showToast('No se pudo restaurar el stock de la venta.', '❌');
+                    }
+
+                    const { data: product, error: productErr } = await supabaseClient
+                        .from('products')
+                        .select('stock')
+                        .eq('id', item.product_id)
+                        .single();
+
+                    if (productErr || !product) {
+                        console.error('Error obteniendo producto para restaurar stock:', productErr);
+                        return showToast('No se pudo restaurar el stock de la venta.', '❌');
+                    }
+
+                    const { error: stockUpdateErr } = await supabaseClient
+                        .from('products')
+                        .update({ stock: Number(product.stock || 0) + Number(item.quantity || 0) })
+                        .eq('id', item.product_id);
+
+                    if (stockUpdateErr) {
+                        console.error('Error restaurando stock desde sale_items:', stockUpdateErr);
+                        return showToast('No se pudo restaurar el stock de la venta.', '❌');
+                    }
+                }
+            } else if (sale.product_id) {
+                const { data: product, error: productErr } = await supabaseClient
+                    .from('products')
+                    .select('stock')
+                    .eq('id', sale.product_id)
+                    .single();
+
+                if (productErr || !product) {
+                    console.error('Error obteniendo producto para fallback de stock:', productErr);
+                    return showToast('No se pudo restaurar el stock de la venta.', '❌');
+                }
+
+                const { error: stockUpdateErr } = await supabaseClient
+                    .from('products')
+                    .update({ stock: Number(product.stock || 0) + Number(sale.quantity || 0) })
+                    .eq('id', sale.product_id);
+
+                if (stockUpdateErr) {
+                    console.error('Error restaurando stock con fallback de sales:', stockUpdateErr);
+                    return showToast('No se pudo restaurar el stock de la venta.', '❌');
+                }
+            }
+        }
+
+        const { data: payments, error: paymentsFetchErr } = await supabaseClient
             .from('sale_payments')
             .select('id, payment_voucher_path')
             .eq('sale_id', currentHardDeleteSaleId);
-            
-        if (payments && payments.length > 0) {
+
+        if (paymentsFetchErr) {
+            console.warn('Error obteniendo vouchers asociados:', paymentsFetchErr);
+        } else if (payments && payments.length > 0) {
             const voucherPaths = payments
                 .map(p => p.payment_voucher_path)
                 .filter(path => typeof path === 'string' && path.trim() !== '');
-                
+
             if (voucherPaths.length > 0) {
                 const { error: storageErr } = await supabaseClient.storage.from('vouchers').remove(voucherPaths);
                 if (storageErr) {
                     console.warn('Error borrando vouchers en storage:', storageErr);
                 }
             }
-            
-            const { error: paymentsErr } = await supabaseClient
-                .from('sale_payments')
-                .delete()
-                .eq('sale_id', currentHardDeleteSaleId);
-                
-            if (paymentsErr) {
-                if (btn) btn.disabled = false;
-                console.error(paymentsErr);
-                return showToast('Error al borrar pagos asociados', '❌');
-            }
         }
-        
+
+        const { error: paymentsErr } = await supabaseClient
+            .from('sale_payments')
+            .delete()
+            .eq('sale_id', currentHardDeleteSaleId);
+
+        if (paymentsErr) {
+            console.error('Error al borrar sale_payments:', paymentsErr);
+            return showToast('Error al borrar pagos asociados', '❌');
+        }
+
+        const { error: saleItemsDeleteErr } = await supabaseClient
+            .from('sale_items')
+            .delete()
+            .eq('sale_id', currentHardDeleteSaleId);
+
+        if (saleItemsDeleteErr) {
+            console.error('Error al borrar sale_items:', saleItemsDeleteErr);
+            return showToast('Error al borrar detalle de venta', '❌');
+        }
+
         const { error: saleErr } = await supabaseClient
             .from('sales')
             .delete()
             .eq('id', currentHardDeleteSaleId);
-            
+
         if (saleErr) {
-            if (btn) btn.disabled = false;
-            console.error(saleErr);
+            console.error('Error al eliminar venta:', saleErr);
             return showToast('Error al eliminar venta', '❌');
         }
-        
+
         hardDeleteSaleModal.close();
         showToast('Venta eliminada definitivamente', '✅');
-        
+
         await renderSalesHistory();
         if (typeof renderPaymentsView === 'function') await renderPaymentsView();
         await updateDashboard();
         await updateReports();
-        
+
     } catch (err) {
         console.error(err);
         showToast('Error inesperado al eliminar', '❌');
