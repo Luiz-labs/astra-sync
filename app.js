@@ -1476,7 +1476,7 @@ async function updateDashboard() {
     const elInventory = document.getElementById('dashInventoryValue');
     if (elInventory) elInventory.textContent = 'S/ ' + inventoryValue.toFixed(2);
 
-    const lowStockCount = products.filter(p => p.stock <= 5).length;
+    const lowStockCount = products.filter(p => Number(p.stock || 0) <= 3).length;
     const elLowStock = document.getElementById('dashLowStock');
     if (elLowStock) {
         elLowStock.textContent = lowStockCount;
