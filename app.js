@@ -98,22 +98,15 @@ function showConfirm(title, text, onConfirm) {
     if (!modal) { onConfirm(); return; }
     document.getElementById('confirmModalTitle').textContent = title;
     document.getElementById('confirmModalText').textContent = text;
-
-    const btnCancel = document.getElementById('btnConfirmCancel');
-    const btnOk = document.getElementById('btnConfirmOk');
-
-    const newBtnCancel = btnCancel.cloneNode(true);
-    const newBtnOk = btnOk.cloneNode(true);
-    btnCancel.parentNode.replaceChild(newBtnCancel, btnCancel);
-    btnOk.parentNode.replaceChild(newBtnOk, btnOk);
-
-    newBtnCancel.addEventListener('click', () => modal.close());
-    newBtnOk.addEventListener('click', () => {
-        modal.close();
-        onConfirm();
-    });
-
+    document.getElementById('confirmBtnNo').onclick = () => modal.close();
+    document.getElementById('confirmBtnYes').onclick = () => { modal.close(); onConfirm(); };
     modal.showModal();
+}
+
+function normalizeDeliveryStatus(status) {
+    const s = (status || '').toString().toLowerCase().trim();
+    if (s === 'entregado') return 'Entregado';
+    return 'Pendiente'; // Captura 'pendiente', 'sin_registrar', null, etc.
 }
 
 // --- DATA HELPERS ---
@@ -1468,7 +1461,7 @@ async function updateDashboard() {
     document.getElementById('dashTodayProfit').textContent = 'S/ ' + todayProfit.toFixed(2);
 
     // Nuevas Métricas con validación de existencia
-    const pendingDeliveries = sales.filter(s => s.delivery_status === 'Pendiente' && !s.is_voided).length;
+    const pendingDeliveries = sales.filter(s => normalizeDeliveryStatus(s.delivery_status) === 'Pendiente' && !s.is_voided).length;
     const elPending = document.getElementById('dashPendingDeliveries');
     if (elPending) elPending.textContent = pendingDeliveries;
     
@@ -1549,7 +1542,7 @@ async function updateReports() {
                 percentFormat = '100%';
             }
 
-            const estado = s.is_voided ? '<span style="color:var(--danger-red);font-weight:bold;font-size:12px;">Anulada</span>' : '<span style="color:var(--success-green);font-weight:bold;font-size:12px;">Activa</span>';
+            const estado = s.is_voided ? '<span style="color:var(--danger-red);font-weight:bold;font-size:12px;">ANULADA</span>' : '<span style="color:var(--success-green);font-weight:bold;font-size:12px;">VÁLIDA</span>';
 
             const tr = document.createElement('tr');
             if (s.is_voided) tr.style.opacity = '0.6';
@@ -1670,7 +1663,7 @@ async function renderSalesHistory() {
         const isVoided = s.is_voided === true;
         const rowStyle = isVoided ? 'opacity: 0.6; background-color: rgba(255, 69, 58, 0.06);' : '';
 
-        const deliveryStatus = s.delivery_status || 'Pendiente';
+        const deliveryStatus = normalizeDeliveryStatus(s.delivery_status);
 
         let statusBadge = '';
         if (isVoided) {
@@ -1732,15 +1725,24 @@ async function renderSalesHistory() {
                 container.appendChild(btnVerPagos);
             }
 
-            if (!isVoided && deliveryStatus === 'Pendiente') {
-                const btnDeliver = document.createElement('button');
-                btnDeliver.textContent = 'Entregado';
-                btnDeliver.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;';
-                btnDeliver.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    markSaleDelivered(s.id);
-                });
-                container.appendChild(btnDeliver);
+            if (!isVoided) {
+                const btnToggleDeliver = document.createElement('button');
+                if (deliveryStatus === 'Pendiente') {
+                    btnToggleDeliver.textContent = 'Entregar';
+                    btnToggleDeliver.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:bold;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;';
+                    btnToggleDeliver.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showConfirm('Confirmar entrega', '¿Confirmas que esta venta ya fue entregada al cliente?', () => markSaleDelivered(s.id));
+                    });
+                } else {
+                    btnToggleDeliver.textContent = 'Revertir';
+                    btnToggleDeliver.style.cssText = 'background:var(--text-secondary);color:white;border:none;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:bold;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;';
+                    btnToggleDeliver.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showConfirm('Revertir entrega', '¿Quieres volver esta venta a estado Pendiente?', () => markSalePending(s.id));
+                    });
+                }
+                container.appendChild(btnToggleDeliver);
             }
 
             const btnAnular = document.createElement('button');
@@ -1845,7 +1847,7 @@ window.markSaleDelivered = async function(saleId) {
         if (fetchErr || !sale) return showToast('Error al buscar la venta.', '❌');
         if (sale.is_voided) return showToast('No se puede entregar una venta anulada.', '⚠️');
         
-        const currentDeliveryStatus = sale.delivery_status || 'Pendiente';
+        const currentDeliveryStatus = normalizeDeliveryStatus(sale.delivery_status);
         if (currentDeliveryStatus === 'Entregado') return showToast('La venta ya figura como entregada.', 'ℹ️');
 
         const { error: updateErr } = await supabaseClient
@@ -1856,6 +1858,37 @@ window.markSaleDelivered = async function(saleId) {
         if (updateErr) throw updateErr;
 
         showToast('Venta marcada como entregada.', '📦');
+        await renderSalesHistory();
+        if (typeof renderPaymentsView === 'function') await renderPaymentsView();
+        await updateDashboard();
+    } catch (err) {
+        console.error(err);
+        showToast('Error al actualizar entrega.', '❌');
+    }
+};
+
+window.markSalePending = async function(saleId) {
+    try {
+        const { data: sale, error: fetchErr } = await supabaseClient
+            .from('sales')
+            .select('id, is_voided, delivery_status')
+            .eq('id', saleId)
+            .single();
+            
+        if (fetchErr || !sale) return showToast('Error al buscar la venta.', '❌');
+        if (sale.is_voided) return showToast('No se puede modificar una venta anulada.', '⚠️');
+        
+        const currentStatus = normalizeDeliveryStatus(sale.delivery_status);
+        if (currentStatus === 'Pendiente') return showToast('La venta ya figura como pendiente.', 'ℹ️');
+
+        const { error: updateErr } = await supabaseClient
+            .from('sales')
+            .update({ delivery_status: 'Pendiente' })
+            .eq('id', saleId);
+
+        if (updateErr) throw updateErr;
+
+        showToast('Entrega revertida a pendiente.', '🚚');
         await renderSalesHistory();
         if (typeof renderPaymentsView === 'function') await renderPaymentsView();
         await updateDashboard();
@@ -2413,8 +2446,8 @@ async function renderPaymentsView() {
                     statusBadge = '<span class="payment-badge badge-hoy">VENCE HOY</span>';
                     totalDueToday += balance;
                 } else {
-                    statusStr = 'AL DÍA';
-                    statusBadge = '<span class="payment-badge badge-aldia">AL DÍA</span>';
+                    statusStr = 'VENCE PRONTO';
+                    statusBadge = '<span class="payment-badge badge-aldia">VENCE PRONTO</span>';
                 }
             }
 
@@ -2430,12 +2463,12 @@ async function renderPaymentsView() {
             const safeCust = String(custName || '');
             const safeProd = String(prodName || '');
             
-            const deliveryStatus = s.delivery_status || 'Pendiente';
+            const deliveryStatus = normalizeDeliveryStatus(s.delivery_status);
             const delivBadge = deliveryStatus === 'Entregado' 
                 ? '<span class="payment-badge badge-entregado">ENTREGADO</span>'
                 : '<span class="payment-badge badge-pendiente">ENTREGA PENDIENTE</span>';
 
-            const vencimientoDesc = statusStr === 'VENCIDO' ? 'Acción urgente' : (statusStr === 'VENCE HOY' ? 'Vence hoy' : 'Al día');
+            const vencimientoDesc = statusStr === 'VENCIDO' ? 'Acción urgente' : (statusStr === 'VENCE HOY' ? 'Vence hoy' : 'En plazo');
 
             tr.innerHTML = `
                 <td>
