@@ -1237,7 +1237,11 @@ saleProductSearch?.addEventListener('input', function () {
 newSaleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const submitBtn = newSaleForm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
     if (currentSaleCart.length === 0) {
+        if (submitBtn) submitBtn.disabled = false;
         return showToast('Agrega al menos un producto al carrito.', '⚠️');
     }
 
@@ -1251,7 +1255,12 @@ newSaleForm.addEventListener('submit', async (e) => {
     }
 
     let profile;
-    try { profile = await getCurrentProfile(); } catch (e) { return showToast('Error perfil', '❌'); }
+    try {
+        profile = await getCurrentProfile();
+    } catch (e) {
+        if (submitBtn) submitBtn.disabled = false;
+        return showToast('Error perfil', '❌');
+    }
 
     const shippingCost = parseFloat(saleShippingCost.value) || 0;
     const shippingType = saleShippingType.value;
@@ -1281,7 +1290,31 @@ newSaleForm.addEventListener('submit', async (e) => {
     const sPaymentMethod = sType === 'contado' ? (salePaymentMethod?.value || 'Efectivo') : null;
     const sDueDate = sType === 'credito' ? saleDueDate?.value : null;
 
+    const liveStockMap = new Map();
+    for (const item of currentSaleCart) {
+        const { data: product, error: productErr } = await supabaseClient
+            .from('products')
+            .select('id, stock')
+            .eq('id', item.product_id)
+            .single();
+
+        if (productErr || !product) {
+            console.error('Error validando stock actual:', productErr);
+            if (submitBtn) submitBtn.disabled = false;
+            return showToast(`No se pudo validar stock para ${item.product_name_snapshot}.`, '❌');
+        }
+
+        const currentStock = Number(product.stock || 0);
+        if (currentStock < Number(item.quantity || 0)) {
+            if (submitBtn) submitBtn.disabled = false;
+            return showToast(`Stock insuficiente para ${item.product_name_snapshot}. Disponible actual: ${currentStock}.`, '⚠️');
+        }
+
+        liveStockMap.set(String(item.product_id), currentStock);
+    }
+
     if (sType === 'credito' && !sDueDate) {
+        if (submitBtn) submitBtn.disabled = false;
         showToast('Debe ingresar fecha de vencimiento para ventas al crédito.', '⚠️');
         return;
     }
@@ -1329,6 +1362,7 @@ newSaleForm.addEventListener('submit', async (e) => {
 
     if (saleErr) {
         console.error('ERROR REAL AL GUARDAR VENTA:', saleErr);
+        if (submitBtn) submitBtn.disabled = false;
         return showToast(`Error venta: ${saleErr.message}`, '❌');
     }
 
@@ -1352,18 +1386,21 @@ newSaleForm.addEventListener('submit', async (e) => {
     if (itemsErr) {
         console.error('Error insertando sale_items:', itemsErr);
         await supabaseClient.from('sales').delete().eq('id', newSaleId);
+        if (submitBtn) submitBtn.disabled = false;
         return showToast('Error guardando detalle. Venta anulada.', '❌');
     }
 
     for (const item of currentSaleCart) {
+        const currentStock = Number(liveStockMap.get(String(item.product_id)) || 0);
         const { error: stockErr } = await supabaseClient.from('products').update({ 
-            stock: item.stock_available - item.quantity 
+            stock: currentStock - Number(item.quantity || 0)
         }).eq('id', item.product_id);
         
         if (stockErr) {
             console.error(`Error actualizando stock para producto ${item.product_id}:`, stockErr);
             await supabaseClient.from('sale_items').delete().eq('sale_id', newSaleId);
             await supabaseClient.from('sales').delete().eq('id', newSaleId);
+            if (submitBtn) submitBtn.disabled = false;
             return showToast('Error actualizando stock. Venta revertida.', '❌');
         }
     }
@@ -1375,6 +1412,7 @@ newSaleForm.addEventListener('submit', async (e) => {
     await loadSalesForm();
     await updateDashboard();
     await updateReports();
+    if (submitBtn) submitBtn.disabled = false;
 });
 
 document.getElementById('btnSuccessSaleOk')?.addEventListener('click', () => {
@@ -1728,6 +1766,18 @@ window.deleteSale = function (saleId, productId, qty) {
 
         let profile;
         try { profile = await getCurrentProfile(); } catch (e) { return showToast('Error de usuario', '❌'); }
+
+        const { data: sale, error: saleErr } = await supabaseClient
+            .from('sales')
+            .select('id, is_voided')
+            .eq('id', saleId)
+            .single();
+
+        if (saleErr || !sale) {
+            console.error('Error obteniendo venta antes de anular:', saleErr);
+            return showToast('No se pudo validar el estado actual de la venta.', '❌');
+        }
+        if (sale.is_voided === true) return showToast('La venta ya fue anulada.', '⚠️');
 
         const { data: saleItems, error: saleItemsErr } = await supabaseClient
             .from('sale_items')
@@ -2092,7 +2142,18 @@ document.getElementById('btnHardDeleteConfirm')?.addEventListener('click', async
             return showToast('No se pudo obtener la venta a eliminar.', '❌');
         }
 
-        if (sale.is_voided !== true) {
+        const { data: currentSale, error: currentSaleErr } = await supabaseClient
+            .from('sales')
+            .select('id, product_id, quantity, is_voided')
+            .eq('id', currentHardDeleteSaleId)
+            .single();
+
+        if (currentSaleErr || !currentSale) {
+            console.error('Error revalidando venta para hard delete:', currentSaleErr);
+            return showToast('No se pudo validar el estado actual de la venta.', '❌');
+        }
+
+        if (currentSale.is_voided !== true) {
             const { data: saleItems, error: saleItemsErr } = await supabaseClient
                 .from('sale_items')
                 .select('product_id, quantity')
@@ -2131,11 +2192,11 @@ document.getElementById('btnHardDeleteConfirm')?.addEventListener('click', async
                         return showToast('No se pudo restaurar el stock de la venta.', '❌');
                     }
                 }
-            } else if (sale.product_id) {
+            } else if (currentSale.product_id) {
                 const { data: product, error: productErr } = await supabaseClient
                     .from('products')
                     .select('stock')
-                    .eq('id', sale.product_id)
+                    .eq('id', currentSale.product_id)
                     .single();
 
                 if (productErr || !product) {
@@ -2145,8 +2206,8 @@ document.getElementById('btnHardDeleteConfirm')?.addEventListener('click', async
 
                 const { error: stockUpdateErr } = await supabaseClient
                     .from('products')
-                    .update({ stock: Number(product.stock || 0) + Number(sale.quantity || 0) })
-                    .eq('id', sale.product_id);
+                    .update({ stock: Number(product.stock || 0) + Number(currentSale.quantity || 0) })
+                    .eq('id', currentSale.product_id);
 
                 if (stockUpdateErr) {
                     console.error('Error restaurando stock con fallback de sales:', stockUpdateErr);
