@@ -1391,17 +1391,17 @@ newSaleForm.addEventListener('submit', async (e) => {
     }
 
     for (const item of currentSaleCart) {
-        const currentStock = Number(liveStockMap.get(String(item.product_id)) || 0);
-        const { error: stockErr } = await supabaseClient.from('products').update({ 
-            stock: currentStock - Number(item.quantity || 0)
-        }).eq('id', item.product_id);
-        
-        if (stockErr) {
-            console.error(`Error actualizando stock para producto ${item.product_id}:`, stockErr);
+        const { data: stockUpdated, error: stockErr } = await supabaseClient.rpc('decrement_stock', {
+            p_product_id: item.product_id,
+            p_quantity: Number(item.quantity || 0)
+        });
+
+        if (stockErr || stockUpdated !== true) {
+            console.error(`Error decrementando stock para producto ${item.product_id}:`, stockErr, stockUpdated);
             await supabaseClient.from('sale_items').delete().eq('sale_id', newSaleId);
             await supabaseClient.from('sales').delete().eq('id', newSaleId);
             if (submitBtn) submitBtn.disabled = false;
-            return showToast('Error actualizando stock. Venta revertida.', '❌');
+            return showToast('Stock insuficiente o conflicto concurrente. Venta revertida.', '❌');
         }
     }
 
@@ -1792,40 +1792,25 @@ window.deleteSale = function (saleId, productId, qty) {
         if (saleItems && saleItems.length > 0) {
             for (const item of saleItems) {
                 if (!item.product_id) continue;
+                const { data: stockRestored, error: stockUpdateErr } = await supabaseClient.rpc('increment_stock', {
+                    p_product_id: item.product_id,
+                    p_quantity: Number(item.quantity || 0)
+                });
 
-                const { data: p, error: productErr } = await supabaseClient
-                    .from('products')
-                    .select('stock')
-                    .eq('id', item.product_id)
-                    .single();
-
-                if (productErr) {
-                    console.error('Error obteniendo producto para restaurar stock:', productErr);
-                    return showToast('No se pudo restaurar el stock de la venta.', '❌');
-                }
-
-                const { error: stockUpdateErr } = await supabaseClient
-                    .from('products')
-                    .update({ stock: p.stock + Number(item.quantity || 0) })
-                    .eq('id', item.product_id);
-
-                if (stockUpdateErr) {
+                if (stockUpdateErr || stockRestored !== true) {
                     console.error('Error restaurando stock:', stockUpdateErr);
                     return showToast('No se pudo restaurar el stock de la venta.', '❌');
                 }
             }
         } else if (productId) {
-            const { data: p } = await supabaseClient.from('products').select('stock').eq('id', productId).single();
-            if (p) {
-                const { error: stockUpdateErr } = await supabaseClient
-                    .from('products')
-                    .update({ stock: p.stock + qty })
-                    .eq('id', productId);
+            const { data: stockRestored, error: stockUpdateErr } = await supabaseClient.rpc('increment_stock', {
+                p_product_id: productId,
+                p_quantity: Number(qty || 0)
+            });
 
-                if (stockUpdateErr) {
-                    console.error('Error restaurando stock:', stockUpdateErr);
-                    return showToast('No se pudo restaurar el stock de la venta.', '❌');
-                }
+            if (stockUpdateErr || stockRestored !== true) {
+                console.error('Error restaurando stock:', stockUpdateErr);
+                return showToast('No se pudo restaurar el stock de la venta.', '❌');
             }
         }
 
@@ -2170,46 +2155,23 @@ document.getElementById('btnHardDeleteConfirm')?.addEventListener('click', async
                         console.error('sale_item sin product_id:', item);
                         return showToast('No se pudo restaurar el stock de la venta.', '❌');
                     }
+                    const { data: stockRestored, error: stockUpdateErr } = await supabaseClient.rpc('increment_stock', {
+                        p_product_id: item.product_id,
+                        p_quantity: Number(item.quantity || 0)
+                    });
 
-                    const { data: product, error: productErr } = await supabaseClient
-                        .from('products')
-                        .select('stock')
-                        .eq('id', item.product_id)
-                        .single();
-
-                    if (productErr || !product) {
-                        console.error('Error obteniendo producto para restaurar stock:', productErr);
-                        return showToast('No se pudo restaurar el stock de la venta.', '❌');
-                    }
-
-                    const { error: stockUpdateErr } = await supabaseClient
-                        .from('products')
-                        .update({ stock: Number(product.stock || 0) + Number(item.quantity || 0) })
-                        .eq('id', item.product_id);
-
-                    if (stockUpdateErr) {
+                    if (stockUpdateErr || stockRestored !== true) {
                         console.error('Error restaurando stock desde sale_items:', stockUpdateErr);
                         return showToast('No se pudo restaurar el stock de la venta.', '❌');
                     }
                 }
             } else if (currentSale.product_id) {
-                const { data: product, error: productErr } = await supabaseClient
-                    .from('products')
-                    .select('stock')
-                    .eq('id', currentSale.product_id)
-                    .single();
+                const { data: stockRestored, error: stockUpdateErr } = await supabaseClient.rpc('increment_stock', {
+                    p_product_id: currentSale.product_id,
+                    p_quantity: Number(currentSale.quantity || 0)
+                });
 
-                if (productErr || !product) {
-                    console.error('Error obteniendo producto para fallback de stock:', productErr);
-                    return showToast('No se pudo restaurar el stock de la venta.', '❌');
-                }
-
-                const { error: stockUpdateErr } = await supabaseClient
-                    .from('products')
-                    .update({ stock: Number(product.stock || 0) + Number(currentSale.quantity || 0) })
-                    .eq('id', currentSale.product_id);
-
-                if (stockUpdateErr) {
+                if (stockUpdateErr || stockRestored !== true) {
                     console.error('Error restaurando stock con fallback de sales:', stockUpdateErr);
                     return showToast('No se pudo restaurar el stock de la venta.', '❌');
                 }
