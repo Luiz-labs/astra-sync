@@ -1690,8 +1690,7 @@ async function renderSalesHistory() {
 
         const tdActions = document.createElement('td');
         const container = document.createElement('div');
-        container.style.display = 'flex';
-        container.style.gap = '8px';
+        container.className = 'payment-actions';
         container.style.alignItems = 'center';
 
         if (isVoided) {
@@ -1707,7 +1706,7 @@ async function renderSalesHistory() {
                 if (s.payment_status !== 'pagado') {
                     const btnCobrar = document.createElement('button');
                     btnCobrar.textContent = 'Cobrar';
-                    btnCobrar.style.cssText = 'background:var(--success-green);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;';
+                    btnCobrar.className = 'btn-action btn-green';
                     btnCobrar.addEventListener('click', (e) => {
                         e.stopPropagation();
                         openPaymentModal(s.id, productName, customerName, s.balance_due);
@@ -1717,7 +1716,7 @@ async function renderSalesHistory() {
 
                 const btnVerPagos = document.createElement('button');
                 btnVerPagos.textContent = 'Ver pagos';
-                btnVerPagos.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;';
+                btnVerPagos.className = 'btn-action btn-blue';
                 btnVerPagos.addEventListener('click', (e) => {
                     e.stopPropagation();
                     openPaymentsHistoryModal(s.id, productName, customerName, s.total, s.balance_due);
@@ -1729,14 +1728,14 @@ async function renderSalesHistory() {
                 const btnToggleDeliver = document.createElement('button');
                 if (deliveryStatus === 'Pendiente') {
                     btnToggleDeliver.textContent = 'Entregar';
-                    btnToggleDeliver.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:bold;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;';
+                    btnToggleDeliver.className = 'btn-action btn-blue';
                     btnToggleDeliver.addEventListener('click', (e) => {
                         e.stopPropagation();
                         showConfirm('Confirmar entrega', '¿Confirmas que esta venta ya fue entregada al cliente?', () => markSaleDelivered(s.id));
                     });
                 } else {
                     btnToggleDeliver.textContent = 'Revertir';
-                    btnToggleDeliver.style.cssText = 'background:var(--text-secondary);color:white;border:none;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:bold;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;';
+                    btnToggleDeliver.className = 'btn-action btn-gray';
                     btnToggleDeliver.addEventListener('click', (e) => {
                         e.stopPropagation();
                         showConfirm('Revertir entrega', '¿Quieres volver esta venta a estado Pendiente?', () => markSalePending(s.id));
@@ -1760,7 +1759,8 @@ async function renderSalesHistory() {
             const btnHardDelete = document.createElement('button');
             btnHardDelete.textContent = 'Eliminar';
             btnHardDelete.title = 'Eliminar Venta Definitivamente';
-            btnHardDelete.style.cssText = 'background:var(--text-primary);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;margin-left:8px;';
+            btnHardDelete.className = 'btn-action btn-dark';
+            btnHardDelete.style.marginLeft = '8px';
             btnHardDelete.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const productName = s.product_name_snapshot || '';
@@ -2505,13 +2505,11 @@ async function renderPaymentsView() {
 
             const tdActions = document.createElement('td');
             const container = document.createElement('div');
-            container.style.display = 'flex';
-            container.style.gap = '6px';
-            container.style.flexWrap = 'wrap';
+            container.className = 'payment-actions';
             
             const btnCobrar = document.createElement('button');
             btnCobrar.textContent = 'Cobrar';
-            btnCobrar.style.cssText = 'background:var(--success-green);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:11px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;';
+            btnCobrar.className = 'btn-action btn-green';
             btnCobrar.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openPaymentModal(s.id, prodName, custName, balance);
@@ -2520,7 +2518,7 @@ async function renderPaymentsView() {
 
             const btnVerPagos = document.createElement('button');
             btnVerPagos.textContent = 'Historial';
-            btnVerPagos.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:11px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;';
+            btnVerPagos.className = 'btn-action btn-blue';
             btnVerPagos.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openPaymentsHistoryModal(s.id, prodName, custName, s.total, balance);
