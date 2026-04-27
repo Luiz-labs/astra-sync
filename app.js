@@ -1462,15 +1462,39 @@ async function updateReports() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    const saleIds = filteredSalesForTable
+        .map(s => s.id)
+        .filter(Boolean);
+
+    const saleItemsCostMap = new Map();
+
+    if (saleIds.length > 0) {
+        const { data: saleItems, error: saleItemsErr } = await supabaseClient
+            .from('sale_items')
+            .select('sale_id, unit_cost, quantity')
+            .in('sale_id', saleIds);
+
+        if (saleItemsErr) {
+            console.error('Error obteniendo sale_items para reportes:', saleItemsErr);
+        } else if (saleItems && saleItems.length > 0) {
+            saleItems.forEach(item => {
+                const currentCost = saleItemsCostMap.get(item.sale_id) || 0;
+                saleItemsCostMap.set(item.sale_id, currentCost + (Number(item.unit_cost || 0) * Number(item.quantity || 0)));
+            });
+        }
+    }
+
     if (filteredSalesForTable.length === 0) {
         tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">No hay ventas en este periodo.</td></tr>';
     } else {
         filteredSalesForTable.forEach(s => {
             const dateStr = new Date(s.created_at).toLocaleDateString();
-            const costoTotal = (s.unit_cost || 0) * s.quantity;
+            const costoTotal = saleItemsCostMap.has(s.id)
+                ? saleItemsCostMap.get(s.id)
+                : (Number(s.unit_cost || 0) * Number(s.quantity || 0));
             let percentFormat = '-';
             if (costoTotal > 0) {
-                percentFormat = ((s.profit / costoTotal) * 100).toFixed(1) + '%';
+                percentFormat = ((Number(s.profit || 0) / costoTotal) * 100).toFixed(1) + '%';
             } else if (s.profit > 0) {
                 percentFormat = '100%';
             }
