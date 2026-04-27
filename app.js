@@ -1821,105 +1821,137 @@ document.getElementById('btnPaymentCancel')?.addEventListener('click', () => {
 
 paymentForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const submitBtn = paymentForm.querySelector('button[type="submit"]');
     if (submitBtn) submitBtn.disabled = true;
 
-    const saleId = document.getElementById('paymentSaleId').value;
-    const amount = parseFloat(document.getElementById('paymentAmount').value);
-    const method = document.getElementById('paymentMethod').value;
-    const maxAmount = parseFloat(document.getElementById('paymentMaxAmount').value);
-    
-    if (amount <= 0) {
-        if (submitBtn) submitBtn.disabled = false;
-        return showToast('El monto debe ser mayor a 0', '⚠️');
-    }
-    if (amount > maxAmount) {
-        if (submitBtn) submitBtn.disabled = false;
-        return showToast('El monto no puede superar el saldo pendiente', '⚠️');
-    }
-    
-    let profile;
-    try { 
-        profile = await getCurrentProfile(); 
-    } catch (err) { 
-        if (submitBtn) submitBtn.disabled = false;
-        return showToast('Error perfil', '❌'); 
-    }
-    
-    let voucherPath = null;
-    const fileInput = document.getElementById('paymentVoucherFile');
-    if (fileInput && fileInput.files && fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        
-        if (file.size > 3 * 1024 * 1024) {
-            if (submitBtn) submitBtn.disabled = false;
-            return showToast('El comprobante no debe superar los 3 MB', '⚠️');
+    try {
+        const saleId = document.getElementById('paymentSaleId').value;
+        const amount = parseFloat(document.getElementById('paymentAmount').value);
+        const method = document.getElementById('paymentMethod').value;
+
+        if (amount <= 0) {
+            return showToast('El monto debe ser mayor a 0', '⚠️');
         }
-        
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-        if (!validTypes.includes(file.type)) {
-            if (submitBtn) submitBtn.disabled = false;
-            return showToast('Formato de comprobante no válido', '⚠️');
+
+        let profile;
+        try {
+            profile = await getCurrentProfile();
+        } catch (err) {
+            return showToast('Error perfil', '❌');
         }
-        
-        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
-        const filePath = `${profile.tenant_id}/${saleId}/${Date.now()}-${safeName}`;
-        
-        const { error: uploadErr } = await supabaseClient.storage.from('vouchers').upload(filePath, file);
-        if (uploadErr) {
-            console.error('Error al subir comprobante:', uploadErr);
-            if (submitBtn) submitBtn.disabled = false;
-            return showToast('Error al subir el comprobante', '❌');
+
+        const { data: sale, error: saleErr } = await supabaseClient
+            .from('sales')
+            .select('id, sale_type, is_voided, payment_status, balance_due')
+            .eq('id', saleId)
+            .single();
+
+        if (saleErr || !sale) {
+            console.error('Error obteniendo venta para cobro:', saleErr);
+            return showToast('No se pudo validar la venta.', '❌');
         }
-        
-        voucherPath = filePath;
-    }
-    
-    const { error: insertErr } = await supabaseClient.from('sale_payments').insert({
-        tenant_id: String(profile.tenant_id),
-        sale_id: saleId,
-        amount: amount,
-        payment_method: method,
-        payment_voucher_path: voucherPath,
-        created_by: profile.id
-    });
-    
-    if (insertErr) {
-        console.error('Error al registrar cobro:', insertErr);
+
+        if (sale.sale_type !== 'credito') {
+            return showToast('La venta no es de tipo crédito.', '⚠️');
+        }
+
+        if (sale.is_voided === true) {
+            return showToast('No se puede cobrar una venta anulada.', '⚠️');
+        }
+
+        if (sale.payment_status === 'pagado') {
+            return showToast('La venta ya está pagada.', '⚠️');
+        }
+
+        const currentBalanceDue = Number(sale.balance_due || 0);
+        if (currentBalanceDue <= 0) {
+            return showToast('La venta no tiene saldo pendiente.', '⚠️');
+        }
+
+        if (amount > currentBalanceDue) {
+            return showToast('El monto no puede superar el saldo pendiente', '⚠️');
+        }
+
+        let voucherPath = null;
+        const fileInput = document.getElementById('paymentVoucherFile');
+        if (fileInput && fileInput.files && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+
+            if (file.size > 3 * 1024 * 1024) {
+                return showToast('El comprobante no debe superar los 3 MB', '⚠️');
+            }
+
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+            if (!validTypes.includes(file.type)) {
+                return showToast('Formato de comprobante no válido', '⚠️');
+            }
+
+            const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '');
+            const filePath = `${profile.tenant_id}/${saleId}/${Date.now()}-${safeName}`;
+
+            const { error: uploadErr } = await supabaseClient.storage.from('vouchers').upload(filePath, file);
+            if (uploadErr) {
+                console.error('Error al subir comprobante:', uploadErr);
+                return showToast('Error al subir el comprobante', '❌');
+            }
+
+            voucherPath = filePath;
+        }
+
+        const { error: insertErr } = await supabaseClient.from('sale_payments').insert({
+            tenant_id: String(profile.tenant_id),
+            sale_id: saleId,
+            amount: amount,
+            payment_method: method,
+            payment_voucher_path: voucherPath,
+            created_by: profile.id
+        });
+
+        if (insertErr) {
+            console.error('Error al registrar cobro:', insertErr);
+
+            if (voucherPath) {
+                const { error: removeVoucherErr } = await supabaseClient.storage.from('vouchers').remove([voucherPath]);
+                if (removeVoucherErr) {
+                    console.warn('No se pudo eliminar el comprobante tras fallar el insert:', removeVoucherErr);
+                }
+            }
+
+            return showToast('Error al registrar el cobro', '❌');
+        }
+
+        const newBalance = Math.max(0, Number((currentBalanceDue - amount).toFixed(2)));
+        const newStatus = newBalance === 0 ? 'pagado' : 'parcial';
+
+        const { error: updateErr } = await supabaseClient.from('sales').update({
+            balance_due: newBalance,
+            payment_status: newStatus
+        }).eq('id', saleId);
+
+        if (updateErr) {
+            console.error('Error al actualizar venta:', updateErr);
+            return showToast('Cobro registrado pero error al actualizar venta', '⚠️');
+        }
+
+        paymentModal.close();
+
+        if (newStatus === 'pagado') {
+            showToast('Pago completo registrado correctamente', '✅');
+        } else {
+            showToast('Pago parcial registrado correctamente', '✅');
+        }
+
+        await renderSalesHistory();
+        if (typeof renderPaymentsView === 'function') await renderPaymentsView();
+        await updateDashboard();
+        await updateReports();
+    } catch (err) {
+        console.error('Error inesperado al registrar cobro:', err);
+        showToast('Error inesperado al registrar el cobro', '❌');
+    } finally {
         if (submitBtn) submitBtn.disabled = false;
-        return showToast('Error al registrar el cobro', '❌');
     }
-    
-    const newBalanceRaw = maxAmount - amount;
-    const newBalance = Math.max(0, Number(newBalanceRaw.toFixed(2)));
-    const newStatus = newBalance <= 0 ? 'pagado' : 'parcial';
-    
-    const { error: updateErr } = await supabaseClient.from('sales').update({
-        balance_due: newBalance,
-        payment_status: newStatus
-    }).eq('id', saleId);
-    
-    if (updateErr) {
-        console.error('Error al actualizar venta:', updateErr);
-        if (submitBtn) submitBtn.disabled = false;
-        return showToast('Cobro registrado pero error al actualizar venta', '⚠️');
-    }
-    
-    paymentModal.close();
-    
-    if (newStatus === 'pagado') {
-        showToast('Pago completo registrado correctamente', '✅');
-    } else {
-        showToast('Pago parcial registrado correctamente', '✅');
-    }
-    
-    await renderSalesHistory();
-    if (typeof renderPaymentsView === 'function') await renderPaymentsView();
-    await updateDashboard();
-    await updateReports();
-    
-    if (submitBtn) submitBtn.disabled = false;
 });
 
 // --- HISTORIAL DE PAGOS ---
