@@ -98,8 +98,13 @@ function showConfirm(title, text, onConfirm) {
     if (!modal) { onConfirm(); return; }
     document.getElementById('confirmModalTitle').textContent = title;
     document.getElementById('confirmModalText').textContent = text;
-    document.getElementById('confirmBtnNo').onclick = () => modal.close();
-    document.getElementById('confirmBtnYes').onclick = () => { modal.close(); onConfirm(); };
+    
+    const btnCancel = document.getElementById('btnConfirmCancel');
+    const btnOk = document.getElementById('btnConfirmOk');
+    
+    if (btnCancel) btnCancel.onclick = () => modal.close();
+    if (btnOk) btnOk.onclick = () => { modal.close(); onConfirm(); };
+    
     modal.showModal();
 }
 
@@ -1703,17 +1708,6 @@ async function renderSalesHistory() {
                 const productName = s.product_name_snapshot || '';
                 const customerName = s.customer_name_snapshot || 'Cliente mostrador';
 
-                if (s.payment_status !== 'pagado') {
-                    const btnCobrar = document.createElement('button');
-                    btnCobrar.textContent = 'Cobrar';
-                    btnCobrar.className = 'btn-action btn-green';
-                    btnCobrar.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        openPaymentModal(s.id, productName, customerName, s.balance_due);
-                    });
-                    container.appendChild(btnCobrar);
-                }
-
                 const btnVerPagos = document.createElement('button');
                 btnVerPagos.textContent = 'Ver pagos';
                 btnVerPagos.className = 'btn-action btn-blue';
@@ -1722,26 +1716,6 @@ async function renderSalesHistory() {
                     openPaymentsHistoryModal(s.id, productName, customerName, s.total, s.balance_due);
                 });
                 container.appendChild(btnVerPagos);
-            }
-
-            if (!isVoided) {
-                const btnToggleDeliver = document.createElement('button');
-                if (deliveryStatus === 'Pendiente') {
-                    btnToggleDeliver.textContent = 'Entregar';
-                    btnToggleDeliver.className = 'btn-action btn-blue';
-                    btnToggleDeliver.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        showConfirm('Confirmar entrega', '¿Confirmas que esta venta ya fue entregada al cliente?', () => markSaleDelivered(s.id));
-                    });
-                } else {
-                    btnToggleDeliver.textContent = 'Revertir';
-                    btnToggleDeliver.className = 'btn-action btn-gray';
-                    btnToggleDeliver.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        showConfirm('Revertir entrega', '¿Quieres volver esta venta a estado Pendiente?', () => markSalePending(s.id));
-                    });
-                }
-                container.appendChild(btnToggleDeliver);
             }
 
             const btnAnular = document.createElement('button');
@@ -2525,6 +2499,25 @@ async function renderPaymentsView() {
             });
             container.appendChild(btnVerPagos);
 
+            // Acciones Logísticas en Cobros
+            const btnToggleDeliver = document.createElement('button');
+            if (deliveryStatus === 'Pendiente') {
+                btnToggleDeliver.textContent = 'Entregar';
+                btnToggleDeliver.className = 'btn-action btn-blue';
+                btnToggleDeliver.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showConfirm('Confirmar entrega', '¿Confirmas que este pedido ya fue entregado al cliente?', () => markSaleDelivered(s.id));
+                });
+            } else {
+                btnToggleDeliver.textContent = 'Revertir';
+                btnToggleDeliver.className = 'btn-action btn-gray';
+                btnToggleDeliver.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showConfirm('Revertir entrega', '¿Quieres volver este pedido a estado pendiente de entrega?', () => markSalePending(s.id));
+                });
+            }
+            container.appendChild(btnToggleDeliver);
+
             tdActions.appendChild(container);
             tr.appendChild(tdActions);
             tbody.appendChild(tr);
@@ -2644,6 +2637,7 @@ const tutorialSteps = [
     { target: 'button[data-target="salesView"]', view: 'salesView', title: 'Ventas', desc: 'Registra nuevas ventas. Selecciona productos, ajusta cantidades, igv y envíos rápidamente.' },
     { target: 'button[data-target="customersView"]', view: 'customersView', title: 'Clientes', desc: 'Administra tus clientes frecuentes, edita su información y revisa su historial de compras.' },
     { target: 'button[data-target="salesHistoryView"]', view: 'salesHistoryView', title: 'Historial', desc: 'Revisa el detalle y estado de todas las transacciones previas en un registro completo.' },
+    { target: 'button[data-target="paymentsView"]', view: 'paymentsView', title: 'Cobros', desc: 'Aquí puedes gestionar los créditos activos, cobrar a clientes y controlar el estado de entrega de los pedidos.' },
     { target: 'button[data-target="reportsView"]', view: 'reportsView', title: 'Reportes', desc: 'Analiza el rendimiento general filtrando periodos (7, 30 días o más) y monitorea utilidades neta.' },
     { target: 'button[data-target="settingsView"]', view: 'settingsView', title: 'Ajustes', desc: 'Personaliza tu experiencia y sube el logo de tu negocio.' }
 ];
