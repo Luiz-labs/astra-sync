@@ -1187,3 +1187,22 @@ main>section {
 }
 .detail-table th { background: #F9FAFB; padding: 8px 12px; text-align: left; font-size: 11px; color: var(--text-secondary); }
 .detail-table td { padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.04); }
+
+/* Ajustes para la Tabla de Cobros (Vista Pagos) */
+#paymentsTable {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 900px; /* Evita colapso extremo */
+}
+#paymentsTable th:nth-child(1) { width: 15%; } /* Cliente */
+#paymentsTable th:nth-child(2) { width: 25%; } /* Producto */
+#paymentsTable th:nth-child(3) { width: 14%; } /* Monto/Saldo */
+#paymentsTable th:nth-child(4) { width: 13%; } /* Vencimiento */
+#paymentsTable th:nth-child(5) { width: 13%; } /* Estado */
+#paymentsTable th:nth-child(6) { width: 20%; } /* Acciones */
+
+#paymentsTable td {
+    vertical-align: middle;
+    overflow: hidden;
+    padding: 12px 10px;
+}

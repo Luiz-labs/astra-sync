@@ -1670,6 +1670,8 @@ async function renderSalesHistory() {
         const isVoided = s.is_voided === true;
         const rowStyle = isVoided ? 'opacity: 0.6; background-color: rgba(255, 69, 58, 0.06);' : '';
 
+        const deliveryStatus = s.delivery_status || 'Pendiente';
+
         let statusBadge = '';
         if (isVoided) {
             statusBadge = '<span style="color:var(--danger-red); font-size:12px; font-weight:bold;">Anulada</span>';
@@ -1680,10 +1682,14 @@ async function renderSalesHistory() {
             const payColor = s.payment_status === 'pagado' ? 'var(--success-green)' : (s.payment_status === 'parcial' ? 'orange' : 'var(--danger-red)');
             const balanceText = s.sale_type === 'credito' ? `<br><span style="font-size:11px; color:var(--text-secondary);">Saldo: S/ ${Number(s.balance_due || 0).toFixed(2)}</span>` : '';
 
+            const deliveryColor = deliveryStatus === 'Entregado' ? 'var(--success-green)' : 'var(--accent-blue)';
+            const deliveryIcon = deliveryStatus === 'Entregado' ? '📦' : '🚚';
+
             statusBadge = `
                 <div style="display:flex; flex-direction:column; gap:2px; line-height:1.2;">
                     <span style="color:${typeColor}; font-size:11px; font-weight:bold;">${typeStr}</span>
                     <span style="color:${payColor}; font-size:12px; font-weight:bold;">${payStatus}</span>
+                    <span style="color:${deliveryColor}; font-size:10px; font-weight:bold; margin-top:2px;">${deliveryIcon} ${deliveryStatus}</span>
                     ${balanceText}
                 </div>
             `;
@@ -1724,6 +1730,17 @@ async function renderSalesHistory() {
                     openPaymentsHistoryModal(s.id, productName, customerName, s.total, s.balance_due);
                 });
                 container.appendChild(btnVerPagos);
+            }
+
+            if (!isVoided && deliveryStatus === 'Pendiente') {
+                const btnDeliver = document.createElement('button');
+                btnDeliver.textContent = 'Entregado';
+                btnDeliver.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:4px 8px;font-size:11px;font-weight:bold;cursor:pointer;';
+                btnDeliver.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    markSaleDelivered(s.id);
+                });
+                container.appendChild(btnDeliver);
             }
 
             const btnAnular = document.createElement('button');
@@ -1816,6 +1833,37 @@ async function renderSalesHistory() {
         tbody.appendChild(tr);
     });
 }
+
+window.markSaleDelivered = async function(saleId) {
+    try {
+        const { data: sale, error: fetchErr } = await supabaseClient
+            .from('sales')
+            .select('id, is_voided, delivery_status')
+            .eq('id', saleId)
+            .single();
+            
+        if (fetchErr || !sale) return showToast('Error al buscar la venta.', '❌');
+        if (sale.is_voided) return showToast('No se puede entregar una venta anulada.', '⚠️');
+        
+        const currentDeliveryStatus = sale.delivery_status || 'Pendiente';
+        if (currentDeliveryStatus === 'Entregado') return showToast('La venta ya figura como entregada.', 'ℹ️');
+
+        const { error: updateErr } = await supabaseClient
+            .from('sales')
+            .update({ delivery_status: 'Entregado' })
+            .eq('id', saleId);
+
+        if (updateErr) throw updateErr;
+
+        showToast('Venta marcada como entregada.', '📦');
+        await renderSalesHistory();
+        if (typeof renderPaymentsView === 'function') await renderPaymentsView();
+        await updateDashboard();
+    } catch (err) {
+        console.error(err);
+        showToast('Error al actualizar entrega.', '❌');
+    }
+};
 
 window.deleteSale = function (saleId, productId, qty) {
     showConfirm('Anular Venta', '¿Estás seguro de que deseas anular esta venta? El stock será devuelto al inventario.', async () => {
@@ -2382,21 +2430,38 @@ async function renderPaymentsView() {
             const safeCust = String(custName || '');
             const safeProd = String(prodName || '');
             
+            const deliveryStatus = s.delivery_status || 'Pendiente';
+            const delivBadge = deliveryStatus === 'Entregado' 
+                ? '<span style="color:var(--success-green); font-size:10px; font-weight:bold;">📦 Entregado</span>'
+                : '<span style="color:var(--accent-blue); font-size:10px; font-weight:bold;">🚚 Pendiente</span>';
+
             tr.innerHTML = `
                 <td><strong>${safeCust}</strong></td>
-                <td><span style="font-size: 13px; color: var(--text-secondary);">${safeProd}</span></td>
                 <td>
-                    <div style="font-size: 11px; color: var(--text-secondary);">Total: S/ ${Number(s.total || 0).toFixed(2)}</div>
-                    <div style="font-weight: bold; color: var(--danger-red);">Saldo: S/ ${Number(balance || 0).toFixed(2)}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.2; max-height: 2.4em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;" title="${safeProd}">
+                        ${safeProd}
+                    </div>
                 </td>
-                <td>${dueStr}</td>
-                <td>${statusBadge}</td>
+                <td>
+                    <div style="display: flex; flex-direction: column; line-height: 1.3;">
+                        <span style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase;">Total: S/ ${Number(s.total || 0).toFixed(2)}</span>
+                        <span style="font-weight: 800; color: var(--danger-red); font-size: 14px;">S/ ${Number(balance || 0).toFixed(2)}</span>
+                    </div>
+                </td>
+                <td style="font-size: 13px;">${dueStr}</td>
+                <td>
+                    <div style="display:flex; flex-direction:column; gap:4px; align-items: flex-start;">
+                        ${statusBadge}
+                        ${delivBadge}
+                    </div>
+                </td>
             `;
 
             const tdActions = document.createElement('td');
             const container = document.createElement('div');
             container.style.display = 'flex';
-            container.style.gap = '8px';
+            container.style.gap = '6px';
+            container.style.flexWrap = 'wrap';
             
             const btnCobrar = document.createElement('button');
             btnCobrar.textContent = 'Cobrar';
