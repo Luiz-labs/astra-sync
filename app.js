@@ -1467,9 +1467,21 @@ async function updateDashboard() {
     document.getElementById('dashTodaySales').textContent = 'S/ ' + todaySales.toFixed(2);
     document.getElementById('dashTodayProfit').textContent = 'S/ ' + todayProfit.toFixed(2);
 
+    // Nuevas Métricas con validación de existencia
+    const pendingDeliveries = sales.filter(s => s.delivery_status === 'Pendiente' && !s.is_voided).length;
+    const elPending = document.getElementById('dashPendingDeliveries');
+    if (elPending) elPending.textContent = pendingDeliveries;
+    
+    const inventoryValue = products.reduce((sum, p) => sum + (Number(p.cost || 0) * Number(p.stock || 0)), 0);
+    const elInventory = document.getElementById('dashInventoryValue');
+    if (elInventory) elInventory.textContent = 'S/ ' + inventoryValue.toFixed(2);
+
     const lowStockCount = products.filter(p => p.stock <= 5).length;
-    document.getElementById('dashLowStock').textContent = lowStockCount;
-    document.getElementById('dashLowStock').style.color = lowStockCount > 0 ? 'var(--danger-red)' : 'inherit';
+    const elLowStock = document.getElementById('dashLowStock');
+    if (elLowStock) {
+        elLowStock.textContent = lowStockCount;
+        elLowStock.style.color = lowStockCount > 0 ? 'var(--danger-red)' : 'inherit';
+    }
 
     if (typeof renderCreditAlerts === 'function') await renderCreditAlerts();
 }
