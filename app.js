@@ -1748,7 +1748,7 @@ async function renderSalesHistory() {
             openSaleDetailModal(s);
         });
         tr.innerHTML = `
-            <td>${formattedDate}</td>
+            <td><span class="expand-btn" style="cursor:pointer; margin-right:8px; color:var(--accent-blue); font-weight:bold;">▶</span>${formattedDate}</td>
             <td><strong>${s.product_name_snapshot}</strong></td>
             <td>${s.quantity}</td>
             <td>${s.customer_name_snapshot || 'Cliente mostrador'}</td>
@@ -1756,6 +1756,50 @@ async function renderSalesHistory() {
             <td style="color: var(--success-green);">S/ ${s.profit.toFixed(2)}</td>
             <td>${statusBadge}</td>
         `;
+
+        const toggleBtn = tr.querySelector('.expand-btn');
+        toggleBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const isExpanded = tr.classList.contains('expanded');
+            if (isExpanded) {
+                tr.classList.remove('expanded');
+                toggleBtn.textContent = '▶';
+                tr.nextElementSibling?.remove();
+            } else {
+                tr.classList.add('expanded');
+                toggleBtn.textContent = '▼';
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'detail-row';
+                detailRow.innerHTML = `<td colspan="8"><div class="detail-container" style="font-size:12px; color:var(--text-secondary);">Cargando ítems...</div></td>`;
+                tr.after(detailRow);
+                
+                try {
+                    const { data: items } = await supabaseClient.from('sale_items').select('*').eq('sale_id', s.id);
+                    const container = detailRow.querySelector('.detail-container');
+                    if (!items || items.length === 0) {
+                        container.innerHTML = 'Sin detalle disponible';
+                    } else {
+                        container.innerHTML = `
+                            <table class="detail-table">
+                                <thead>
+                                    <tr><th>Producto</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Precio</th><th style="text-align:right;">Total</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map(item => `
+                                        <tr>
+                                            <td>${item.product_name_snapshot || 'Producto'}</td>
+                                            <td style="text-align:center;">${item.quantity}</td>
+                                            <td style="text-align:right;">S/ ${Number(item.unit_price || 0).toFixed(2)}</td>
+                                            <td style="text-align:right; font-weight:bold;">S/ ${Number(item.total || 0).toFixed(2)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>`;
+                    }
+                } catch (err) { detailRow.querySelector('.detail-container').innerHTML = 'Error al cargar'; }
+            }
+        });
+
         tr.appendChild(tdActions);
         tbody.appendChild(tr);
     });

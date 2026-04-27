@@ -1172,3 +1172,12 @@ main>section {
 .sale-row-clickable:hover {
     background: rgba(10, 132, 255, 0.04);
 }
+/* Estilos para el Acordeón del Historial de Ventas */
+.detail-row { background-color: rgba(0,0,0,0.02) !important; }
+.detail-container { padding: 12px 24px; animation: fadeIn 0.3s ease-out; }
+.detail-table { 
+    width: 100%; font-size: 13px; border-collapse: collapse; 
+    background: white; border: 1px solid rgba(0,0,0,0.06); border-radius: 8px; overflow: hidden;
+}
+.detail-table th { background: #F9FAFB; padding: 8px 12px; text-align: left; font-size: 11px; color: var(--text-secondary); }
+.detail-table td { padding: 8px 12px; border-bottom: 1px solid rgba(0,0,0,0.04); }
