@@ -2405,16 +2405,16 @@ async function renderPaymentsView() {
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                 if (diffDays < 0) {
-                    statusStr = 'Vencido';
-                    statusBadge = '<span class="badge badge-danger">Vencido</span>';
+                    statusStr = 'VENCIDO';
+                    statusBadge = '<span class="payment-badge badge-vencido">VENCIDO</span>';
                     totalOverdue += balance;
                 } else if (diffDays === 0) {
-                    statusStr = 'Vence hoy';
-                    statusBadge = '<span class="badge badge-warning">Vence hoy</span>';
+                    statusStr = 'VENCE HOY';
+                    statusBadge = '<span class="payment-badge badge-hoy">VENCE HOY</span>';
                     totalDueToday += balance;
                 } else {
-                    statusStr = 'Por vencer';
-                    statusBadge = '<span class="badge badge-primary">Por vencer</span>';
+                    statusStr = 'AL DÍA';
+                    statusBadge = '<span class="payment-badge badge-aldia">AL DÍA</span>';
                 }
             }
 
@@ -2432,25 +2432,38 @@ async function renderPaymentsView() {
             
             const deliveryStatus = s.delivery_status || 'Pendiente';
             const delivBadge = deliveryStatus === 'Entregado' 
-                ? '<span style="color:var(--success-green); font-size:10px; font-weight:bold;">📦 Entregado</span>'
-                : '<span style="color:var(--accent-blue); font-size:10px; font-weight:bold;">🚚 Pendiente</span>';
+                ? '<span class="payment-badge badge-entregado">ENTREGADO</span>'
+                : '<span class="payment-badge badge-pendiente">ENTREGA PENDIENTE</span>';
+
+            const vencimientoDesc = statusStr === 'VENCIDO' ? 'Acción urgente' : (statusStr === 'VENCE HOY' ? 'Vence hoy' : 'Al día');
 
             tr.innerHTML = `
-                <td><strong>${safeCust}</strong></td>
                 <td>
-                    <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.2; max-height: 2.4em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;" title="${safeProd}">
-                        ${safeProd}
+                    <div class="payments-cell-stack">
+                        <span class="payments-main-text">${safeCust}</span>
+                        <span class="payments-sub-text">Crédito activo</span>
                     </div>
                 </td>
                 <td>
-                    <div style="display: flex; flex-direction: column; line-height: 1.3;">
-                        <span style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase;">Total: S/ ${Number(s.total || 0).toFixed(2)}</span>
-                        <span style="font-weight: 800; color: var(--danger-red); font-size: 14px;">S/ ${Number(balance || 0).toFixed(2)}</span>
+                    <div class="payments-cell-stack">
+                        <div style="font-weight:600; font-size:14px; color:var(--text-primary); max-height:2.4em; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">${safeProd}</div>
+                        <span class="payments-sub-text">Total: S/ ${Number(s.total || 0).toFixed(2)}</span>
                     </div>
                 </td>
-                <td style="font-size: 13px;">${dueStr}</td>
                 <td>
-                    <div style="display:flex; flex-direction:column; gap:4px; align-items: flex-start;">
+                    <div class="payments-cell-stack">
+                        <span class="payments-main-text" style="color:var(--danger-red); font-size:16px;">S/ ${Number(balance || 0).toFixed(2)}</span>
+                        <span class="payments-sub-text">Pendiente de cobro</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="payments-cell-stack">
+                        <span class="payments-main-text">${dueStr}</span>
+                        <span class="payments-sub-text">${vencimientoDesc}</span>
+                    </div>
+                </td>
+                <td>
+                    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
                         ${statusBadge}
                         ${delivBadge}
                     </div>
@@ -2465,7 +2478,7 @@ async function renderPaymentsView() {
             
             const btnCobrar = document.createElement('button');
             btnCobrar.textContent = 'Cobrar';
-            btnCobrar.style.cssText = 'background:var(--success-green);color:white;border:none;border-radius:4px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;';
+            btnCobrar.style.cssText = 'background:var(--success-green);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:11px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;';
             btnCobrar.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openPaymentModal(s.id, prodName, custName, balance);
@@ -2474,7 +2487,7 @@ async function renderPaymentsView() {
 
             const btnVerPagos = document.createElement('button');
             btnVerPagos.textContent = 'Historial';
-            btnVerPagos.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:4px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;';
+            btnVerPagos.style.cssText = 'background:var(--accent-blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:11px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;';
             btnVerPagos.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openPaymentsHistoryModal(s.id, prodName, custName, s.total, balance);

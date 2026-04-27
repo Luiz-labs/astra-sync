@@ -1206,3 +1206,32 @@ main>section {
     overflow: hidden;
     padding: 12px 10px;
 }
+
+/* Estilos Consistentes para Cobros (Estilo Productos) */
+.payments-cell-stack { display: flex; flex-direction: column; gap: 2px; }
+.payments-main-text { font-weight: 700; font-size: 15px; color: var(--text-primary); }
+.payments-sub-text { font-size: 12px; color: var(--text-secondary); }
+
+.payment-badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    display: inline-block;
+    letter-spacing: 0.5px;
+}
+.badge-vencido { background: #ffe5e5; color: #d32f2f; }
+.badge-hoy { background: #fff4e5; color: #ed6c02; }
+.badge-aldia { background: #e5f6fd; color: #0288d1; }
+.badge-entregado { background: #edf7ed; color: #2e7d32; }
+.badge-pendiente { background: #e0f2fe; color: #0369a1; }
+
+#paymentsTable th {
+    background: #f9fafb;
+    padding: 12px 16px;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
