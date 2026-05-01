@@ -685,7 +685,7 @@ async function renderProducts(searchQuery = '') {
         let stockBadge = '';
         if (p.stock === 0) {
             stockBadge = '<span class="badge badge-danger">Sin stock</span>';
-        } else if (p.stock <= 3) {
+        } else if (Number(p.stock || 0) <= 2) {
             stockBadge = '<span class="badge badge-warning">Bajo stock</span>';
         } else {
             stockBadge = '<span class="badge badge-success">Disponible</span>';
@@ -1474,7 +1474,7 @@ async function updateDashboard() {
     const elInventory = document.getElementById('dashInventoryValue');
     if (elInventory) elInventory.textContent = 'S/ ' + inventoryValue.toFixed(2);
 
-    const lowStockCount = products.filter(p => Number(p.stock || 0) <= 3).length;
+    const lowStockCount = products.filter(p => Number(p.stock || 0) <= 2).length;
     const elLowStock = document.getElementById('dashLowStock');
     if (elLowStock) {
         elLowStock.textContent = lowStockCount;
