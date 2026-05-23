@@ -1066,10 +1066,50 @@ function buildCartPriceMetaHtml(item) {
 
     return `
         <div style="font-size: 10px; margin-top: 2px; color: var(--text-secondary);">
-            Catalogo: S/ ${Number(item.original_unit_price || 0).toFixed(2)}
+            Catálogo: S/ ${Number(item.original_unit_price || 0).toFixed(2)}
         </div>
         <span style="display:inline-flex; margin-top:4px; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; color:${badgeColor}; background:${badgeBg};">${badgeText}</span>
     `;
+}
+
+function getPricingBadgeMeta(item) {
+    if (!item) return null;
+
+    const pricingMode = String(item.pricing_mode || 'catalog');
+    const isCustomPrice = item.is_custom_price === true || item.is_custom_price === 'true';
+
+    if (!isCustomPrice || pricingMode === 'catalog') return null;
+
+    if (pricingMode === 'cost') {
+        return {
+            text: 'Precio costo',
+            color: '#8E44AD',
+            bg: 'rgba(142, 68, 173, 0.12)'
+        };
+    }
+
+    return {
+        text: 'Precio personalizado',
+        color: '#C96F00',
+        bg: 'rgba(255, 149, 0, 0.14)'
+    };
+}
+
+function buildPricingBadgeHtml(item) {
+    const badge = getPricingBadgeMeta(item);
+    if (!badge) return '';
+
+    return `<span style="display:inline-flex; margin-top:4px; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; color:${badge.color}; background:${badge.bg};">${badge.text}</span>`;
+}
+
+function buildSaleItemPriceDisplay(item) {
+    const originalUnitPrice = Number(item.original_unit_price ?? item.unit_price ?? 0);
+    const finalUnitPrice = Number(item.final_unit_price ?? item.unit_price ?? 0);
+    const badge = getPricingBadgeMeta(item);
+
+    if (!badge) return `S/ ${finalUnitPrice.toFixed(2)}`;
+
+    return `<div style="color: var(--text-secondary); text-decoration: line-through; font-size: 11px;">S/ ${originalUnitPrice.toFixed(2)}</div><div>S/ ${finalUnitPrice.toFixed(2)}</div>`;
 }
 
 saleType?.addEventListener('change', (e) => {
@@ -1326,7 +1366,7 @@ document.getElementById('btnAddSaleCart')?.addEventListener('click', () => {
     const maxStock = parseInt(selectedOpt.dataset.stock);
     let qty = parseInt(saleQuantity.value) || 1;
 
-    if (finalPrice < cost) showToast('El precio aplicado esta por debajo del costo.', '⚠️');
+    if (finalPrice < cost) showToast('El precio aplicado está por debajo del costo.', '⚠️');
 
     if (qty <= 0) return showToast('Cantidad debe ser mayor a 0.', '⚠️');
 
@@ -1556,6 +1596,11 @@ newSaleForm.addEventListener('submit', async (e) => {
         sale_id: newSaleId,
         product_id: item.product_id,
         product_name_snapshot: item.product_name_snapshot,
+        original_unit_price: item.original_unit_price,
+        final_unit_price: item.final_unit_price,
+        pricing_mode: item.pricing_mode,
+        is_custom_price: item.is_custom_price,
+        price_override_reason: item.price_override_reason || null,
         quantity: item.quantity,
         unit_price: item.unit_price,
         unit_cost: item.unit_cost,
@@ -1799,7 +1844,10 @@ window.openSaleDetailModal = async function(sale) {
                 // El snapshot del nombre del producto no está en sale_items, 
                 // en una fase real se sacaría de products o se guardaría snapshot en sale_items.
                 // Por ahora usamos el ID o un placeholder si no hay snapshot en item.
-                tdProd.textContent = item.product_name_snapshot || `Producto ID: ${item.product_id}`;
+                tdProd.innerHTML = `
+                    <div>${item.product_name_snapshot || `Producto ID: ${item.product_id}`}</div>
+                    ${buildPricingBadgeHtml(item)}
+                `;
 
                 const tdQty = document.createElement('td');
                 tdQty.style.padding = '8px';
@@ -1810,7 +1858,7 @@ window.openSaleDetailModal = async function(sale) {
                 const tdPrice = document.createElement('td');
                 tdPrice.style.padding = '8px';
                 tdPrice.style.textAlign = 'right';
-                tdPrice.textContent = 'S/ ' + Number(item.unit_price || 0).toFixed(2);
+                tdPrice.innerHTML = buildSaleItemPriceDisplay(item);
 
                 const tdSub = document.createElement('td');
                 tdSub.style.padding = '8px';
@@ -1823,6 +1871,17 @@ window.openSaleDetailModal = async function(sale) {
                 tr.appendChild(tdPrice);
                 tr.appendChild(tdSub);
                 tbody.appendChild(tr);
+
+                if (item.price_override_reason) {
+                    const reasonTr = document.createElement('tr');
+                    reasonTr.style.borderBottom = '1px solid rgba(0,0,0,0.04)';
+                    reasonTr.innerHTML = `
+                        <td colspan="4" style="padding: 0 8px 8px 8px; font-size: 11px; color: var(--text-secondary);">
+                            Motivo: ${item.price_override_reason}
+                        </td>
+                    `;
+                    tbody.appendChild(reasonTr);
+                }
             });
         }
     } catch (err) {
@@ -1977,11 +2036,19 @@ async function renderSalesHistory() {
                                 <tbody>
                                     ${items.map(item => `
                                         <tr>
-                                            <td>${item.product_name_snapshot || 'Producto'}</td>
+                                            <td>
+                                                <div>${item.product_name_snapshot || 'Producto'}</div>
+                                                ${buildPricingBadgeHtml(item)}
+                                            </td>
                                             <td style="text-align:center;">${item.quantity}</td>
-                                            <td style="text-align:right;">S/ ${Number(item.unit_price || 0).toFixed(2)}</td>
+                                            <td style="text-align:right;">${buildSaleItemPriceDisplay(item)}</td>
                                             <td style="text-align:right; font-weight:bold;">S/ ${Number(item.total || 0).toFixed(2)}</td>
                                         </tr>
+                                        ${item.price_override_reason ? `
+                                            <tr>
+                                                <td colspan="4" style="padding-top: 0; font-size: 11px; color: var(--text-secondary);">Motivo: ${item.price_override_reason}</td>
+                                            </tr>
+                                        ` : ''}
                                     `).join('')}
                                 </tbody>
                             </table>`;
