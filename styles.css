@@ -76,6 +76,78 @@ main>section:not([hidden]) {
     flex: 1;
 }
 
+.topbar-shell {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.topbar-user-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 220px;
+    max-width: min(100%, 320px);
+    padding: 12px 14px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.topbar-user-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(circle at 28% 28%, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 38%),
+        linear-gradient(135deg, #0A84FF 0%, #5E5CE6 52%, #30C7EC 100%);
+    box-shadow:
+        0 14px 30px rgba(10, 132, 255, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.topbar-user-avatar svg {
+    width: 28px;
+    height: 28px;
+    display: block;
+}
+
+.topbar-user-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.topbar-user-meta strong {
+    font-size: 15px;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.topbar-user-meta span {
+    font-size: 12px;
+    line-height: 1.15;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 main>section {
     width: 100%;
 }
@@ -747,6 +819,15 @@ dialog::backdrop {
         padding-bottom: 48px;
     }
 
+    .topbar-shell {
+        margin-bottom: 28px;
+    }
+
+    .topbar-user-card {
+        min-width: 248px;
+        padding: 14px 16px;
+    }
+
     #mainNav {
         top: 0;
         bottom: 0;
@@ -800,10 +881,36 @@ main>section {
 .app-footer {
     margin-top: auto;
     text-align: center;
-    padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
+    padding: 24px 16px calc(18px + env(safe-area-inset-bottom));
     font-size: 12px;
     color: var(--text-secondary);
     opacity: 0.82;
+    letter-spacing: 0.02em;
+}
+
+.app-footer p {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    padding: 10px 18px;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.52);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+@media (max-width: 899px) {
+    .topbar-shell {
+        justify-content: stretch;
+    }
+
+    .topbar-user-card {
+        width: 100%;
+        max-width: none;
+    }
 }
 
 #customersView .table-container,

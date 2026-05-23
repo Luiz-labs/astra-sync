@@ -58,6 +58,20 @@
 
         <!-- Contenedor de Pantallas -->
         <main id="appContainer">
+            <div class="topbar-shell" aria-label="Información de usuario">
+                <div class="topbar-user-card" id="topbarUserCard">
+                    <div class="topbar-user-avatar" id="topbarUserAvatar" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="32" cy="24" r="11" fill="white" fill-opacity="0.96"/>
+                            <path d="M14 52C14 42.0589 22.0589 34 32 34C41.9411 34 50 42.0589 50 52V54H14V52Z" fill="white" fill-opacity="0.92"/>
+                        </svg>
+                    </div>
+                    <div class="topbar-user-meta">
+                        <strong id="topbarUserName">Usuario</strong>
+                        <span id="topbarUserRole">Cargando perfil...</span>
+                    </div>
+                </div>
+            </div>
 
             <!-- 1. Vista Inicio (Dashboard) -->
             <section id="dashboardView">
@@ -530,7 +544,7 @@
             </section>
 
             <footer class="app-footer">
-                <p>Desarrollado por <strong>Luiz-Labs</strong> 🚀 | Astra Sync v1.0</p>
+                <p>Astra Sync v1.0.0 · Sistema de gestión comercial · Luiz Labs © 2026</p>
             </footer>
 
         </main>

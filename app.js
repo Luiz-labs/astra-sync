@@ -15,6 +15,71 @@ const STORAGE_KEYS = {
     customers: 'astra_customers'
 };
 
+function formatUserDisplayName(profile, email) {
+    const candidates = [
+        profile?.full_name,
+        profile?.display_name,
+        profile?.name,
+        profile?.user_name,
+        profile?.username
+    ];
+
+    const validName = candidates.find(value => typeof value === 'string' && value.trim() !== '');
+    if (validName) return validName.trim();
+
+    if (email) {
+        const localPart = email.split('@')[0] || 'Usuario Astra';
+        return localPart
+            .replace(/[._-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .replace(/\b\w/g, char => char.toUpperCase());
+    }
+
+    return 'Usuario Astra';
+}
+
+function formatUserRole(profile) {
+    const rawRole = [
+        profile?.role,
+        profile?.user_role,
+        profile?.profile_role,
+        profile?.position
+    ].find(value => typeof value === 'string' && value.trim() !== '');
+
+    if (!rawRole) return 'Usuario autenticado';
+
+    const normalized = rawRole.trim().replace(/[_-]+/g, ' ');
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function renderLoggedUserCard(profile = null) {
+    const nameEl = document.getElementById('topbarUserName');
+    const roleEl = document.getElementById('topbarUserRole');
+    const cardEl = document.getElementById('topbarUserCard');
+    if (!nameEl || !roleEl || !cardEl) return;
+
+    const email = window.currentUserEmail || '';
+    nameEl.textContent = formatUserDisplayName(profile, email);
+    roleEl.textContent = formatUserRole(profile);
+    cardEl.setAttribute('title', email || nameEl.textContent);
+}
+
+async function refreshLoggedUserCard() {
+    const nameEl = document.getElementById('topbarUserName');
+    const roleEl = document.getElementById('topbarUserRole');
+    if (!nameEl || !roleEl) return;
+
+    try {
+        const profile = await getCurrentProfile();
+        window.currentUserProfile = profile;
+        renderLoggedUserCard(profile);
+    } catch (error) {
+        console.warn('No se pudo cargar el perfil visual del usuario:', error);
+        renderLoggedUserCard(window.currentUserProfile || null);
+    }
+}
+
 // --- AUTH LOGIC ---
 function canHardDeleteSales() {
     const email = window.currentUserEmail || '';
@@ -31,9 +96,13 @@ async function checkAuth() {
     if (isLoggedIn) {
         if (loginView) loginView.style.display = 'none';
         if (mainAppUI) mainAppUI.removeAttribute('hidden');
+        renderLoggedUserCard(window.currentUserProfile || null);
+        await refreshLoggedUserCard();
     } else {
         if (loginView) loginView.style.display = 'flex';
         if (mainAppUI) mainAppUI.setAttribute('hidden', '');
+        window.currentUserProfile = null;
+        renderLoggedUserCard(null);
     }
 }
 
@@ -158,6 +227,7 @@ async function getCurrentProfile() {
         throw new Error('No existe un perfil asociado al usuario actual.');
     }
 
+    window.currentUserProfile = profile;
     return profile;
 }
 
