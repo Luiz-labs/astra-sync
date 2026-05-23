@@ -1022,6 +1022,11 @@ const salePriceWarning = document.getElementById('salePriceWarning');
 const salePriceOverrideReasonContainer = document.getElementById('salePriceOverrideReasonContainer');
 const salePriceOverrideReason = document.getElementById('salePriceOverrideReason');
 
+const saleOperationType = document.getElementById('saleOperationType');
+const saleCourtesyReasonContainer = document.getElementById('saleCourtesyReasonContainer');
+const saleCourtesyReason = document.getElementById('saleCourtesyReason');
+const saleOperationNotes = document.getElementById('saleOperationNotes');
+
 const saleType = document.getElementById('saleType');
 const salePaymentMethodContainer = document.getElementById('salePaymentMethodContainer');
 const saleDueDateContainer = document.getElementById('saleDueDateContainer');
@@ -1031,6 +1036,10 @@ const saleDeliveryStatus = document.getElementById('saleDeliveryStatus');
 
 function formatCurrency(value) {
     return `S/ ${Number(value || 0).toFixed(2)}`;
+}
+
+function isCourtesyOperation() {
+    return (saleOperationType?.value || 'sale') === 'courtesy';
 }
 
 function areAmountsEqual(a, b) {
@@ -1066,10 +1075,27 @@ function syncSalePricingFields({ keepAppliedPrice = false } = {}) {
     if (!selectedOpt) {
         if (saleCatalogPrice) saleCatalogPrice.textContent = formatCurrency(0);
         if (saleProductCostRef) saleProductCostRef.textContent = formatCurrency(0);
-        if (saleAppliedPrice && !keepAppliedPrice) saleAppliedPrice.value = '';
+        if (saleAppliedPrice && !keepAppliedPrice) saleAppliedPrice.value = isCourtesyOperation() ? '0.00' : '';
         updateSalePriceWarning(0, 0);
         updateSalePriceReasonVisibility(0, 0);
         return;
+    }
+
+    if (isCourtesyOperation()) {
+        if (saleAppliedPrice) {
+            saleAppliedPrice.value = '0.00';
+            saleAppliedPrice.disabled = true;
+            saleAppliedPrice.min = '0';
+        }
+        if (btnUseCostPrice) btnUseCostPrice.disabled = true;
+        if (salePriceOverrideReasonContainer) salePriceOverrideReasonContainer.style.display = 'none';
+        if (salePriceOverrideReason) salePriceOverrideReason.value = '';
+    } else {
+        if (saleAppliedPrice) {
+            saleAppliedPrice.disabled = false;
+            saleAppliedPrice.min = '0.01';
+        }
+        if (btnUseCostPrice) btnUseCostPrice.disabled = false;
     }
 
     const catalogPrice = parseFloat(selectedOpt.dataset.price) || 0;
@@ -1080,12 +1106,16 @@ function syncSalePricingFields({ keepAppliedPrice = false } = {}) {
 
     if (saleAppliedPrice) {
         if (!keepAppliedPrice || !saleAppliedPrice.value) {
-            saleAppliedPrice.value = catalogPrice.toFixed(2);
+            saleAppliedPrice.value = isCourtesyOperation() ? '0.00' : catalogPrice.toFixed(2);
+        } else if (isCourtesyOperation()) {
+            saleAppliedPrice.value = '0.00';
         }
 
         const appliedPrice = parseFloat(saleAppliedPrice.value) || 0;
         updateSalePriceWarning(appliedPrice, productCost);
-        updateSalePriceReasonVisibility(appliedPrice, catalogPrice);
+        if (!isCourtesyOperation()) {
+            updateSalePriceReasonVisibility(appliedPrice, catalogPrice);
+        }
     }
 }
 
@@ -1093,6 +1123,7 @@ function getSalePricingState() {
     const selectedOpt = getSelectedSaleProductOption();
     if (!selectedOpt) return null;
 
+    const courtesyMode = isCourtesyOperation();
     const originalUnitPrice = parseFloat(selectedOpt.dataset.price);
     const unitCost = parseFloat(selectedOpt.dataset.cost);
     const finalUnitPrice = parseFloat(saleAppliedPrice?.value);
@@ -1103,15 +1134,21 @@ function getSalePricingState() {
     }
 
     if (!Number.isFinite(finalUnitPrice)) {
-        return { error: 'Debe ingresar un precio aplicado valido.' };
+        return { error: 'Debe ingresar un precio aplicado válido.' };
     }
 
-    if (finalUnitPrice < 0.01) {
+    if (!courtesyMode && finalUnitPrice < 0.01) {
         return { error: 'El precio aplicado debe ser mayor o igual a S/ 0.01.' };
     }
 
+    if (courtesyMode && !areAmountsEqual(finalUnitPrice, 0)) {
+        return { error: 'Las cortesías deben registrarse con precio aplicado S/ 0.00.' };
+    }
+
     let pricingMode = 'catalog';
-    if (areAmountsEqual(finalUnitPrice, unitCost) && !areAmountsEqual(finalUnitPrice, originalUnitPrice)) {
+    if (courtesyMode) {
+        pricingMode = 'custom';
+    } else if (areAmountsEqual(finalUnitPrice, unitCost) && !areAmountsEqual(finalUnitPrice, originalUnitPrice)) {
         pricingMode = 'cost';
     } else if (!areAmountsEqual(finalUnitPrice, originalUnitPrice)) {
         pricingMode = 'custom';
@@ -1128,7 +1165,7 @@ function getSalePricingState() {
 }
 
 function buildCartPriceMetaHtml(item) {
-    if (!item?.is_custom_price) return '';
+    if (!item?.is_custom_price || areAmountsEqual(item.final_unit_price ?? item.unit_price, 0)) return '';
 
     const badgeText = item.pricing_mode === 'cost' ? 'Precio costo' : 'Precio personalizado';
     const badgeColor = item.pricing_mode === 'cost' ? '#8E44AD' : '#C96F00';
@@ -1147,8 +1184,9 @@ function getPricingBadgeMeta(item) {
 
     const pricingMode = String(item.pricing_mode || 'catalog');
     const isCustomPrice = item.is_custom_price === true || item.is_custom_price === 'true';
+    const finalUnitPrice = Number(item.final_unit_price ?? item.unit_price ?? 0);
 
-    if (!isCustomPrice || pricingMode === 'catalog') return null;
+    if (!isCustomPrice || pricingMode === 'catalog' || areAmountsEqual(finalUnitPrice, 0)) return null;
 
     if (pricingMode === 'cost') {
         return {
@@ -1198,6 +1236,28 @@ saleType?.addEventListener('change', (e) => {
         if (salePaymentMethod) salePaymentMethod.value = '';
     }
 });
+
+function syncSaleOperationFields() {
+    const courtesyMode = isCourtesyOperation();
+
+    if (saleCourtesyReasonContainer) {
+        saleCourtesyReasonContainer.style.display = courtesyMode ? 'block' : 'none';
+    }
+
+    if (!courtesyMode && saleCourtesyReason) {
+        saleCourtesyReason.value = '';
+    }
+
+    if (courtesyMode && saleType) {
+        saleType.value = 'contado';
+        saleType.dispatchEvent(new Event('change'));
+    }
+
+    syncSalePricingFields({ keepAppliedPrice: false });
+    calculateSaleTotals();
+}
+
+saleOperationType?.addEventListener('change', syncSaleOperationFields);
 
 function matchesProductSearch(product, searchTerm) {
     const term = String(searchTerm || '').toLowerCase().trim();
@@ -1306,6 +1366,9 @@ async function loadSalesForm() {
     saleQuantity.value = 1;
     saleIgv.value = '0.00';
     saleShippingCost.value = '0.00';
+    if (saleOperationType) saleOperationType.value = 'sale';
+    if (saleCourtesyReason) saleCourtesyReason.value = '';
+    if (saleOperationNotes) saleOperationNotes.value = '';
     saleManualCustomer.value = '';
     if (saleAppliedPrice) saleAppliedPrice.value = '';
     if (salePriceOverrideReason) salePriceOverrideReason.value = '';
@@ -1325,6 +1388,7 @@ async function loadSalesForm() {
     }
     if (saleDeliveryStatus) saleDeliveryStatus.value = 'Entregado';
 
+    syncSaleOperationFields();
     syncSalePricingFields();
 
     calculateSaleTotals();
@@ -1356,6 +1420,7 @@ function renderSaleCart() {
             div.innerHTML = `
                 <div style="flex: 1;">
                     <strong style="color: var(--text-primary);">${item.product_name_snapshot}</strong><br>
+                    ${item.operation_type === 'courtesy' ? '<span style="display:inline-flex; margin:4px 0 2px 0; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; color:#7a3e00; background:rgba(255, 159, 10, 0.14);">Sorteo / Cortesía</span><br>' : ''}
                     <span style="font-size: 11px;">
                         ${item.quantity} x S/ ${Number(item.final_unit_price || item.unit_price || 0).toFixed(2)}
                     </span>
@@ -1366,6 +1431,11 @@ function renderSaleCart() {
                     ${item.price_override_reason ? `
                         <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
                             ${item.price_override_reason}
+                        </div>
+                    ` : ''}
+                    ${item.courtesy_reason ? `
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                            ${item.courtesy_reason}
                         </div>
                     ` : ''}
                 </div>
@@ -1392,9 +1462,11 @@ saleAppliedPrice?.addEventListener('input', () => {
     const selectedOpt = getSelectedSaleProductOption();
     const catalogPrice = parseFloat(selectedOpt?.dataset.price || 0);
     const cost = parseFloat(selectedOpt?.dataset.cost || 0);
-    const appliedPrice = parseFloat(saleAppliedPrice.value) || 0;
-    updateSalePriceWarning(appliedPrice, cost);
-    updateSalePriceReasonVisibility(appliedPrice, catalogPrice);
+    const appliedPrice = parseFloat(saleAppliedPrice.value);
+    updateSalePriceWarning(Number.isFinite(appliedPrice) ? appliedPrice : 0, cost);
+    if (!isCourtesyOperation()) {
+        updateSalePriceReasonVisibility(Number.isFinite(appliedPrice) ? appliedPrice : 0, catalogPrice);
+    }
 });
 
 btnUseCostPrice?.addEventListener('click', () => {
@@ -1433,18 +1505,26 @@ document.getElementById('btnAddSaleCart')?.addEventListener('click', () => {
     const pricingMode = pricingState.pricing_mode;
     const isCustomPrice = pricingState.is_custom_price;
     const overrideReason = pricingState.price_override_reason;
+    const courtesyMode = isCourtesyOperation();
+    const courtesyReason = saleCourtesyReason?.value.trim() || '';
     const maxStock = parseInt(selectedOpt.dataset.stock);
     let qty = parseInt(saleQuantity.value) || 1;
 
-    if (finalPrice < cost) showToast('El precio aplicado está por debajo del costo.', '⚠️');
+    if (!courtesyMode && finalPrice < cost) showToast('El precio aplicado está por debajo del costo.', '⚠️');
 
     if (qty <= 0) return showToast('Cantidad debe ser mayor a 0.', '⚠️');
+
+    if (courtesyMode && !courtesyReason) {
+        return showToast('Debe indicar el motivo de la cortesía o sorteo.', '⚠️');
+    }
 
     const existingIndex = currentSaleCart.findIndex(i =>
         i.product_id === productId &&
         areAmountsEqual(i.final_unit_price ?? i.unit_price, finalPrice) &&
         String(i.pricing_mode || 'catalog') === pricingMode &&
-        String(i.price_override_reason || '') === String(overrideReason || '')
+        String(i.price_override_reason || '') === String(overrideReason || '') &&
+        String(i.operation_type || 'sale') === (courtesyMode ? 'courtesy' : 'sale') &&
+        String(i.courtesy_reason || '') === String(courtesyReason || '')
     );
     let currentQtyInCart = 0;
     if (existingIndex >= 0) {
@@ -1469,6 +1549,8 @@ document.getElementById('btnAddSaleCart')?.addEventListener('click', () => {
             pricing_mode: pricingMode,
             is_custom_price: isCustomPrice,
             price_override_reason: overrideReason,
+            operation_type: courtesyMode ? 'courtesy' : 'sale',
+            courtesy_reason: courtesyReason,
             unit_price: finalPrice,
             unit_cost: cost,
             total: qty * finalPrice,
@@ -1481,7 +1563,9 @@ document.getElementById('btnAddSaleCart')?.addEventListener('click', () => {
     if (saleProductSearch) saleProductSearch.value = '';
     renderSaleCart();
     syncSalePricingFields();
-    if (salePriceOverrideReason) salePriceOverrideReason.value = '';
+    if (!courtesyMode && salePriceOverrideReason) salePriceOverrideReason.value = '';
+    if (courtesyMode && saleCourtesyReason) saleCourtesyReason.value = '';
+    if (courtesyMode && saleAppliedPrice) saleAppliedPrice.value = '0.00';
     updateSalePriceReasonVisibility(parseFloat(saleAppliedPrice?.value || 0), parseFloat(selectedOpt.dataset.price || 0));
 });
 
@@ -1494,19 +1578,26 @@ function calculateSaleTotals() {
         profitItems += item.profit;
     });
 
+    const courtesyMode = isCourtesyOperation();
     let shippingCost = parseFloat(saleShippingCost.value) || 0;
     let shippingMode = saleShippingMode.value;
 
-    let total = totalItems;
-    let profit = profitItems;
+    let total = courtesyMode ? 0 : totalItems;
+    let profit = courtesyMode ? -Math.abs(totalItems - profitItems) : profitItems;
 
-    if (shippingMode === 'sumar_al_precio') {
+    if (!courtesyMode && shippingMode === 'sumar_al_precio') {
         total += shippingCost;
-    } else if (shippingMode === 'costo_interno') {
+    } else if (!courtesyMode && shippingMode === 'costo_interno') {
+        profit -= shippingCost;
+    } else if (courtesyMode) {
         profit -= shippingCost;
     }
 
-    if (document.activeElement !== saleIgv) {
+    if (courtesyMode) {
+        if (document.activeElement !== saleIgv) {
+            saleIgv.value = '0.00';
+        }
+    } else if (document.activeElement !== saleIgv) {
         saleIgv.value = (total * 0.18).toFixed(2);
     }
 
@@ -1559,6 +1650,10 @@ newSaleForm.addEventListener('submit', async (e) => {
     const shippingType = saleShippingType.value;
     const shippingMode = saleShippingMode.value;
     const igv = parseFloat(saleIgv.value) || 0;
+    const operationType = saleOperationType?.value || 'sale';
+    const commercialEffect = operationType === 'sale';
+    const courtesyReason = saleCourtesyReason?.value.trim() || null;
+    const operationNotes = saleOperationNotes?.value.trim() || null;
 
     let totalItems = 0;
     let profitItems = 0;
@@ -1570,18 +1665,33 @@ newSaleForm.addEventListener('submit', async (e) => {
         totalQty += item.quantity;
     });
 
-    let total = totalItems;
-    let profit = profitItems;
+    let total = commercialEffect ? totalItems : 0;
+    let profit = commercialEffect ? profitItems : -(totalItems - profitItems);
 
-    if (shippingMode === 'sumar_al_precio') {
+    if (commercialEffect && shippingMode === 'sumar_al_precio') {
         total += shippingCost;
-    } else if (shippingMode === 'costo_interno') {
+    } else if (commercialEffect && shippingMode === 'costo_interno') {
+        profit -= shippingCost;
+    } else if (!commercialEffect) {
         profit -= shippingCost;
     }
 
-    const sType = saleType?.value || 'contado';
-    const sPaymentMethod = sType === 'contado' ? (salePaymentMethod?.value || 'Efectivo') : null;
-    const sDueDate = sType === 'credito' ? saleDueDate?.value : null;
+    const requestedSaleType = saleType?.value || 'contado';
+    const sType = commercialEffect ? requestedSaleType : 'contado';
+    const sPaymentMethod = commercialEffect
+        ? (sType === 'contado' ? (salePaymentMethod?.value || 'Efectivo') : null)
+        : null;
+    const sDueDate = commercialEffect && sType === 'credito' ? saleDueDate?.value : null;
+
+    if (!commercialEffect && !courtesyReason) {
+        if (submitBtn) submitBtn.disabled = false;
+        return showToast('Debe ingresar el motivo de la cortesía o sorteo.', '⚠️');
+    }
+
+    if (!commercialEffect && currentSaleCart.some(item => !areAmountsEqual(item.final_unit_price ?? item.unit_price, 0))) {
+        if (submitBtn) submitBtn.disabled = false;
+        return showToast('Las cortesías deben registrarse con precio S/ 0.00.', '⚠️');
+    }
 
     const liveStockMap = new Map();
     for (const item of currentSaleCart) {
@@ -1606,14 +1716,16 @@ newSaleForm.addEventListener('submit', async (e) => {
         liveStockMap.set(String(item.product_id), currentStock);
     }
 
-    if (sType === 'credito' && !sDueDate) {
+    if (commercialEffect && sType === 'credito' && !sDueDate) {
         if (submitBtn) submitBtn.disabled = false;
         showToast('Debe ingresar fecha de vencimiento para ventas al crédito.', '⚠️');
         return;
     }
 
-    const sPaymentStatus = sType === 'contado' ? 'pagado' : 'pendiente';
-    const sBalanceDue = sType === 'contado' ? 0 : total;
+    const sPaymentStatus = commercialEffect
+        ? (sType === 'contado' ? 'pagado' : 'pendiente')
+        : 'pagado';
+    const sBalanceDue = commercialEffect && sType === 'credito' ? total : 0;
     const sDeliveryStatus = saleDeliveryStatus?.value || 'Entregado';
 
     const multiSaleName = currentSaleCart.length === 1 
@@ -1639,6 +1751,10 @@ newSaleForm.addEventListener('submit', async (e) => {
         shipping_mode: shippingMode,
         sale_type: sType,
         payment_method: sPaymentMethod,
+        operation_type: operationType,
+        commercial_effect: commercialEffect,
+        courtesy_reason: courtesyReason,
+        operation_notes: operationNotes,
         due_date: sDueDate,
         payment_status: sPaymentStatus,
         balance_due: sBalanceDue,
@@ -1736,19 +1852,27 @@ async function updateDashboard() {
     let renderedCount = 0;
     sales.forEach(s => {
         if (s.is_voided) return;
+        const commercialEffect = s.commercial_effect !== false;
 
         const d = new Date(s.created_at);
-        if (d.toDateString() === todayStr) {
+        if (d.toDateString() === todayStr && commercialEffect) {
             todaySales += s.total;
             todayProfit += s.profit;
         }
 
         if (renderedCount < 5) {
             const li = document.createElement('li');
+            const opBadge = commercialEffect
+                ? '<span style="display:inline-flex; margin-left:8px; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; color:var(--accent-blue); background:rgba(10, 132, 255, 0.10);">Venta</span>'
+                : '<span style="display:inline-flex; margin-left:8px; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; color:#7a3e00; background:rgba(255, 159, 10, 0.14);">Sorteo / Cortesía</span>';
             const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             li.innerHTML = `
-                <span><strong>${s.quantity}x</strong> ${s.product_name_snapshot} <span style="font-size: 13px; color: var(--text-secondary); margin-left: 8px;">${time}</span></span>
-                <strong style="color: var(--accent-blue);">S/ ${s.total.toFixed(2)}</strong>
+                <span>
+                    <strong>${s.quantity}x</strong> ${s.product_name_snapshot}
+                    ${opBadge}
+                    <span style="font-size: 13px; color: var(--text-secondary); margin-left: 8px;">${time}</span>
+                </span>
+                <strong style="color: ${commercialEffect ? 'var(--accent-blue)' : 'var(--text-secondary)'};">S/ ${Number(s.total || 0).toFixed(2)}</strong>
             `;
             recentList.appendChild(li);
             renderedCount++;
@@ -1798,7 +1922,8 @@ async function updateReports() {
         filteredSalesForTable = sales.filter(s => new Date(s.created_at).getTime() >= cutoffTime);
     }
 
-    const filteredSalesForMetrics = filteredSalesForTable.filter(s => !s.is_voided);
+    const filteredSalesForMetrics = filteredSalesForTable.filter(s => !s.is_voided && s.commercial_effect !== false);
+    const filteredCommercialSalesForTable = filteredSalesForTable.filter(s => s.commercial_effect !== false);
 
     const totalSales = filteredSalesForMetrics.reduce((sum, s) => sum + Number(s.total || 0), 0);
     const totalProfit = filteredSalesForMetrics.reduce((sum, s) => sum + Number(s.profit || 0), 0);
@@ -1832,10 +1957,10 @@ async function updateReports() {
         }
     }
 
-    if (filteredSalesForTable.length === 0) {
+    if (filteredCommercialSalesForTable.length === 0) {
         tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">No hay ventas en este periodo.</td></tr>';
     } else {
-        filteredSalesForTable.forEach(s => {
+        filteredCommercialSalesForTable.forEach(s => {
             const dateStr = new Date(s.created_at).toLocaleDateString();
             const costoTotal = saleItemsCostMap.has(s.id)
                 ? saleItemsCostMap.get(s.id)
@@ -1884,7 +2009,9 @@ window.openSaleDetailModal = async function(sale) {
     // Llenar cabecera
     document.getElementById('sdmCustomer').textContent = sale.customer_name_snapshot || 'Cliente mostrador';
     document.getElementById('sdmDate').textContent = new Date(sale.created_at).toLocaleString();
-    document.getElementById('sdmStatus').textContent = sale.payment_status || 'Pendiente';
+    document.getElementById('sdmStatus').textContent = (sale.operation_type === 'courtesy')
+        ? 'Sorteo / Cortesía'
+        : (sale.payment_status || 'Pendiente');
     document.getElementById('sdmType').textContent = sale.sale_type || 'Contado';
     document.getElementById('sdmTotal').textContent = 'S/ ' + Number(sale.total || 0).toFixed(2);
 
@@ -1987,6 +2114,17 @@ async function renderSalesHistory() {
         let statusBadge = '';
         if (isVoided) {
             statusBadge = '<span style="color:var(--danger-red); font-size:12px; font-weight:bold;">Anulada</span>';
+        } else if ((s.operation_type || 'sale') === 'courtesy') {
+            const deliveryColor = deliveryStatus === 'Entregado' ? 'var(--success-green)' : 'var(--accent-blue)';
+            const deliveryIcon = deliveryStatus === 'Entregado' ? '📦' : '🚚';
+            statusBadge = `
+                <div style="display:flex; flex-direction:column; gap:2px; line-height:1.2;">
+                    <span style="color:#7a3e00; font-size:11px; font-weight:bold;">SORTEO / CORTESÍA</span>
+                    <span style="color:var(--text-secondary); font-size:12px; font-weight:bold;">Sin cobro</span>
+                    <span style="color:${deliveryColor}; font-size:10px; font-weight:bold; margin-top:2px;">${deliveryIcon} ${deliveryStatus}</span>
+                    ${s.courtesy_reason ? `<span style="font-size:11px; color:var(--text-secondary);">${s.courtesy_reason}</span>` : ''}
+                </div>
+            `;
         } else {
             const typeStr = s.sale_type === 'credito' ? 'CRÉDITO' : 'CONTADO';
             const payStatus = s.payment_status === 'pendiente' ? 'Pendiente' : (s.payment_status === 'parcial' ? 'Parcial' : 'Pagado');
@@ -2018,7 +2156,7 @@ async function renderSalesHistory() {
             naSpan.textContent = 'N/A';
             container.appendChild(naSpan);
         } else {
-            if (s.sale_type === 'credito') {
+            if (s.sale_type === 'credito' && (s.operation_type || 'sale') === 'sale') {
                 const productName = s.product_name_snapshot || '';
                 const customerName = s.customer_name_snapshot || 'Cliente mostrador';
 
@@ -2688,6 +2826,8 @@ async function renderPaymentsView() {
         const { data: sales, error } = await supabaseClient
             .from('sales')
             .select('*')
+            .eq('operation_type', 'sale')
+            .eq('commercial_effect', true)
             .eq('sale_type', 'credito')
             .eq('is_voided', false)
             .neq('payment_status', 'pagado')
@@ -2861,6 +3001,8 @@ async function renderCreditAlerts() {
         const { data: sales, error } = await supabaseClient
             .from('sales')
             .select('balance_due, due_date')
+            .eq('operation_type', 'sale')
+            .eq('commercial_effect', true)
             .eq('sale_type', 'credito')
             .eq('is_voided', false)
             .neq('payment_status', 'pagado');

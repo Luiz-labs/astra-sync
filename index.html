@@ -253,6 +253,28 @@
 
                         <div class="form-grid" style="margin-bottom: 12px; gap: 12px;">
                             <label>
+                                Tipo de Operación
+                                <select id="saleOperationType" required>
+                                    <option value="sale" selected>Venta comercial</option>
+                                    <option value="courtesy">Sorteo o cortesía</option>
+                                </select>
+                            </label>
+
+                            <label id="saleCourtesyReasonContainer" style="display: none;">
+                                Motivo de cortesía / sorteo
+                                <input
+                                    type="text"
+                                    id="saleCourtesyReason"
+                                    maxlength="160"
+                                    placeholder="Ej. sorteo promocional, obsequio, reposición interna">
+                            </label>
+
+                            <label>
+                                Observaciones internas
+                                <input type="text" id="saleOperationNotes" maxlength="220" placeholder="Opcional">
+                            </label>
+
+                            <label>
                                 Tipo de Venta
                                 <select id="saleType" required>
                                     <option value="contado">Contado</option>
